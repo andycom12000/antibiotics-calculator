@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anti 自動計算機 - 臨床決策支援</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar: Patient Inputs -->
+        <aside class="sidebar">
+            <header class="app-header">
+                <h1>Anti 計算機</h1>
+                <p>臨床決策支援系統</p>
+            </header>
+
+            <section class="patient-info">
+                <h3>病人基本資訊</h3>
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label>性別</label>
+                        <select id="gender">
+                            <option value="male">男性 (Male)</option>
+                            <option value="female">女性 (Female)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>年齡</label>
+                        <input type="number" id="age" placeholder="歲" value="65">
+                    </div>
+                    <div class="input-group">
+                        <label>體重 (kg)</label>
+                        <input type="number" id="weight" placeholder="kg" value="60">
+                    </div>
+                    <div class="input-group">
+                        <label>Creatinine (mg/dL)</label>
+                        <input type="number" id="creatinine" step="0.1" placeholder="Cr" value="1.0">
+                    </div>
+                </div>
+                <div class="crcl-display">
+                    <span class="label">預估 CrCl:</span>
+                    <span id="crcl-value">--</span>
+                    <span class="unit">ml/min</span>
+                </div>
+            </section>
+
+            <section class="selection-section">
+                <h3>病原菌 Spectrum</h3>
+                <div class="checkbox-grid" id="spectrum-grid">
+                    <label><input type="checkbox" value="Strep"> Strep.</label>
+                    <label><input type="checkbox" value="MSSA"> MSSA</label>
+                    <label><input type="checkbox" value="Efc"> E. faecalis</label>
+                    <label><input type="checkbox" value="GNB"> GNB</label>
+                    <label><input type="checkbox" value="Enbac"> Ent.bac</label>
+                    <label><input type="checkbox" value="PsA"> PsA</label>
+                    <label><input type="checkbox" value="Anae"> Anae (厭氧)</label>
+                </div>
+            </section>
+
+            <section class="selection-section">
+                <h3>抗藥性 / 特殊部位</h3>
+                <div class="checkbox-grid">
+                    <label><input type="checkbox" value="MRSA"> MRSA</label>
+                    <label><input type="checkbox" value="ESBL"> ESBL</label>
+                    <label><input type="checkbox" value="BBB"> CNS (BBB)</label>
+                    <label><input type="checkbox" value="Bili"> Biliary</label>
+                    <label><input type="checkbox" value="UTI"> UTI</label>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Main Content: Results -->
+        <main class="main-content">
+            <div class="toolbar">
+                <div class="syndrome-selector">
+                    <label>臨床症候群 (Empiric):</label>
+                    <select id="syndrome-choice">
+                        <option value="">-- 手動選擇 --</option>
+                        <option value="Biliary Tract Infections">膽道感染 (Biliary Tract)</option>
+                    </select>
+                </div>
+                <button id="copy-summary" class="btn-secondary">一鍵複製備註</button>
+            </div>
+
+            <div id="results-area" class="results-grid">
+                <!-- Antibiotic cards will be injected here -->
+                <div class="empty-state">
+                    請由左側勾選或選擇症候群以查看建議藥物
+                </div>
+            </div>
+
+            <section class="summary-preview">
+                <h3>結果摘要預覽</h3>
+                <div id="summary-text" class="summary-box">
+                    尚未產生摘要...
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
