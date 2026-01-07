@@ -178,9 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="anti-card ${isPrimary ? 'primary' : ''}">
                     <h4>${anti.name}</h4>
-                    <div class="coverage-tags">
-                        ${criteria.map(c => `<span class="tag match">${c}</span>`).join('')}
-                    </div>
                 </div>
             `;
         }).join('');
