@@ -178,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="anti-card ${isPrimary ? 'primary' : ''}">
                     <h4>${anti.name}</h4>
-                    <p style="font-size: 0.8rem; color: #64748b;">涵蓋特點:</p>
                     <div class="coverage-tags">
                         ${criteria.map(c => `<span class="tag match">${c}</span>`).join('')}
                     </div>
