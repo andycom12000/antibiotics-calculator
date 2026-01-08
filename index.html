@@ -48,6 +48,15 @@
                     <span id="crcl-value">--</span>
                     <span class="unit">ml/min</span>
                 </div>
+                <div class="input-group dialysis-selector">
+                    <label>透析狀態 (Dialysis)</label>
+                    <select id="dialysis">
+                        <option value="none">Not under dialysis</option>
+                        <option value="HD">HD (Hemodialysis)</option>
+                        <option value="PD">PD (Peritoneal Dialysis)</option>
+                        <option value="CRRT">CRRT (Continuous RRT)</option>
+                    </select>
+                </div>
             </section>
 
             <section class="selection-section">
@@ -90,9 +99,6 @@
 
             <div id="results-area" class="results-grid">
                 <!-- Antibiotic cards will be injected here -->
-                <div class="empty-state">
-                    請由左側勾選或選擇症候群以查看建議藥物
-                </div>
             </div>
 
             <section class="summary-preview">
@@ -103,6 +109,7 @@
             </section>
         </main>
     </div>
+    <script src="data.js"></script>
     <script src="script.js"></script>
 </body>
 

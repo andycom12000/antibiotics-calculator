@@ -1,92 +1,4 @@
-const ANTIBIOTICS = [
-    {
-        name: "Baktar (TMP/SMX)",
-        coverage: { Strep: "v", MSSA: "v", GNB: "", PsA: "" },
-        resistance: { MRSA: "v", ESBL: "", VRE: "", MDRAB: "", CRKP: "" },
-        penetration: { BBB: false, Pros: false, Endo: false, Bili: false, UTI: true }
-    },
-    {
-        name: "Oxacillin",
-        coverage: { Strep: "v", MSSA: "v" },
-        resistance: {},
-        penetration: { UTI: false }
-    },
-    {
-        name: "Ampicillin",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v" },
-        resistance: { MDRAB: "++" },
-        penetration: { UTI: true }
-    },
-    {
-        name: "Unasyn (Amp/Sulb)",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v", Bili: true, Anae: "v" },
-        resistance: { MDRAB: "++" },
-        penetration: { Bili: true, UTI: true }
-    },
-    {
-        name: "Tazocin (Pip/Tazo)",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v", GNB: "+", Enbac: "++", Anae: "v" },
-        resistance: {},
-        penetration: { Bili: true, UTI: true }
-    },
-    {
-        name: "Ceftriaxone (3°)",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v" },
-        resistance: {},
-        penetration: { BBB: true, Pros: true, Endo: true, Bili: true }
-    },
-    {
-        name: "Cefepime (4°)",
-        coverage: { Strep: "v", MSSA: "v", GNB: "++" },
-        resistance: {},
-        penetration: { BBB: true, UTI: true }
-    },
-    {
-        name: "Ertapenem",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v", GNB: "v", Enbac: "++", Anae: "v" },
-        resistance: { MRSA: "v", ESBL: "v" },
-        penetration: { BBB: true, Pros: true, Bili: true, UTI: true }
-    },
-    {
-        name: "Meropenem",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v", GNB: "+", Enbac: "++", Anae: "v" },
-        resistance: { MRSA: "v", ESBL: "v" },
-        penetration: { BBB: true, Pros: true, Endo: true, Bili: true, UTI: true }
-    },
-    {
-        name: "Ciprofloxacin",
-        coverage: { MSSA: "v", Efc: "v", GNB: "+", Enbac: "+" },
-        resistance: {},
-        penetration: { BBB: true, Pros: true }
-    },
-    {
-        name: "Levofloxacin",
-        coverage: { Strep: "v", MSSA: "v", Efc: "v", Enbac: "++", PsA: "v" },
-        resistance: {},
-        penetration: { BBB: true, Pros: true }
-    },
-    {
-        name: "Metronidazole",
-        coverage: { Anae: "v" },
-        resistance: {},
-        penetration: { BBB: true, Bili: true, UTI: true }
-    }
-];
-
-const EMPIRIC_RULES = [
-    {
-        syndrome: "Biliary Tract Infections",
-        primary: ["Tazocin (Pip/Tazo)", "Ertapenem"],
-        severe: ["Meropenem"],
-        alternative: [
-            "Ceftriaxone (3°) + Metronidazole",
-            "Moxifloxacin",
-            "Ciprofloxacin + Metronidazole",
-            "Levofloxacin + Metronidazole"
-        ],
-        pathogens: ["GNB", "Anae", "Efc", "Bili"]
-    }
-];
+// Data is loaded from data.js - no duplicate definitions needed here
 
 document.addEventListener('DOMContentLoaded', () => {
     const inputs = ['gender', 'age', 'weight', 'creatinine'];
@@ -96,11 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const syndromeChoice = document.getElementById('syndrome-choice');
     const summaryText = document.getElementById('summary-text');
     const copyBtn = document.getElementById('copy-summary');
+    const dialysisSelect = document.getElementById('dialysis');
 
     // Initialize listeners
     inputElements.forEach(el => el.addEventListener('input', updateUI));
     document.querySelectorAll('input[type="checkbox"]').forEach(el => el.addEventListener('change', updateUI));
     syndromeChoice.addEventListener('change', handleSyndromeChange);
+    dialysisSelect.addEventListener('change', updateUI);
     copyBtn.addEventListener('click', copySummary);
 
     function calculateCrCl() {
@@ -149,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function filterAntibiotics(criteria) {
-        if (criteria.length === 0) return [];
+        // Show all antibiotics when no criteria are selected
+        if (criteria.length === 0) return ANTIBIOTICS;
 
         return ANTIBIOTICS.filter(anti => {
             // Check if it covers ALL selected criteria
@@ -165,19 +80,65 @@ document.addEventListener('DOMContentLoaded', () => {
         if (results.length === 0) {
             resultsArea.innerHTML = `
                 <div class="empty-state">
-                    ${criteria.length > 0 ? '找不到能涵蓋所有勾選條件的單一藥物。' : '請由左側勾選或選擇症候群以查看建議藥物'}
+                    找不到能涵蓋所有勾選條件的單一藥物。請調整選擇條件。
                 </div>`;
             return;
         }
+
+        const dialysisStatus = dialysisSelect.value;
 
         resultsArea.innerHTML = results.map(anti => {
             const currentSyndrome = syndromeChoice.value;
             const syndromeRule = EMPIRIC_RULES.find(r => r.syndrome === currentSyndrome);
             const isPrimary = syndromeRule && syndromeRule.primary.includes(anti.name);
 
+            // Generate dosage section if available
+            let dosageHTML = '';
+            if (anti.dosages && anti.dosages.length > 0) {
+                dosageHTML = `
+                    <div class="dosage-section">
+                        <h5>建議劑量</h5>
+                        ${anti.dosages.map(d => `
+                            <div class="dosage-item ${d.preferred ? 'preferred' : ''}">
+                                <span class="indication">${d.indication}</span>
+                                <span class="dose">${d.dose}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Generate dialysis dosage section if on dialysis
+            let dialysisHTML = '';
+            if (dialysisStatus !== 'none' && anti.dialysisDosages && anti.dialysisDosages[dialysisStatus]) {
+                dialysisHTML = `
+                    <div class="dosage-section dialysis-dosage">
+                        <h5>透析劑量 (Dialysis Dosing)</h5>
+                        <div class="dosage-item preferred">
+                            <span class="indication">${dialysisStatus}</span>
+                            <span class="dose">${anti.dialysisDosages[dialysisStatus]}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Generate comments section if available
+            let commentsHTML = '';
+            if (anti.comments) {
+                commentsHTML = `
+                    <div class="comments-section">
+                        <h5>備註</h5>
+                        <p>${anti.comments}</p>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="anti-card ${isPrimary ? 'primary' : ''}">
                     <h4>${anti.name}</h4>
+                    ${dosageHTML}
+                    ${dialysisHTML}
+                    ${commentsHTML}
                 </div>
             `;
         }).join('');
@@ -185,7 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSummary(crcl, criteria, results) {
         if (criteria.length === 0) {
-            summaryText.textContent = '尚未產生摘要...';
+            let text = `[Anti Calculator Summary]\n`;
+            text += `Patient: CrCl ${crcl || 'N/A'} ml/min\n`;
+            text += `Showing all antibiotics (${results.length} total)`;
+            summaryText.textContent = text;
             return;
         }
 
