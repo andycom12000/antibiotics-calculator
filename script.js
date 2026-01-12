@@ -5,19 +5,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputElements = inputs.map(id => document.getElementById(id));
     const crclDisplay = document.getElementById('crcl-value');
     const resultsArea = document.getElementById('results-area');
-    const syndromeChoice = document.getElementById('syndrome-choice');
     const summaryText = document.getElementById('summary-text');
-    const copyBtn = document.getElementById('copy-summary');
+    const manualToggle = document.getElementById('manual-crcl-toggle');
+    const manualInput = document.getElementById('manual-crcl');
+    const inputsWrapper = document.getElementById('patient-inputs-wrapper');
     const dialysisSelect = document.getElementById('dialysis');
 
     // Initialize listeners
     inputElements.forEach(el => el.addEventListener('input', updateUI));
-    document.querySelectorAll('input[type="checkbox"]').forEach(el => el.addEventListener('change', updateUI));
-    syndromeChoice.addEventListener('change', handleSyndromeChange);
+    document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+        // Keep checkbox changes for pathogen selection, but avoid double-handling the manual toggle here
+        if (el.id !== 'manual-crcl-toggle') el.addEventListener('change', updateUI);
+    });
+
+    // Manual CrCl toggle: show a single CrCl input inside the grid and hide original inputs
+    manualToggle.addEventListener('change', () => {
+        const manualOn = manualToggle.checked;
+        if (manualOn) {
+            if (inputsWrapper) inputsWrapper.classList.add('manual-on');
+            if (manualInput) manualInput.focus();
+            // Uncheck all other checkboxes (keep only manual toggle state)
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (cb.id && cb.id !== 'manual-crcl-toggle') cb.checked = false;
+            });
+        } else {
+            if (inputsWrapper) inputsWrapper.classList.remove('manual-on');
+            if (manualInput) manualInput.value = '';
+        }
+        inputElements.forEach(el => el.disabled = manualOn);
+        updateUI();
+    });
+    if (manualInput) manualInput.addEventListener('input', updateUI);
+
+    // Apply initial manual toggle state in case of persisted HTML state
+    if (manualToggle && manualToggle.checked) {
+        if (inputsWrapper) inputsWrapper.classList.add('manual-on');
+        if (manualInput) manualInput.focus();
+        inputElements.forEach(el => el.disabled = true);
+    }
+
     dialysisSelect.addEventListener('change', updateUI);
-    copyBtn.addEventListener('click', copySummary);
 
     function calculateCrCl() {
+        const manualOn = manualToggle && manualToggle.checked;
+        if (manualOn && manualInput) {
+            const manualVal = parseFloat(manualInput.value);
+            if (isNaN(manualVal) || manualVal <= 0) return null;
+            return manualVal.toFixed(1);
+        }
+
         const gender = document.getElementById('gender').value;
         const age = parseFloat(document.getElementById('age').value);
         const weight = parseFloat(document.getElementById('weight').value);
@@ -34,23 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getSelectedCriteria() {
         const checked = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+            .filter(el => el.id !== 'manual-crcl-toggle')
             .map(el => el.value);
         return checked;
     }
 
-    function handleSyndromeChange() {
-        const syndromeName = syndromeChoice.value;
-        if (!syndromeName) return;
 
-        const rule = EMPIRIC_RULES.find(r => r.syndrome === syndromeName);
-        if (rule) {
-            // Auto-check pathogens associated with this syndrome
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.checked = rule.pathogens.includes(cb.value);
-            });
-            updateUI();
-        }
-    }
 
     function updateUI() {
         const crcl = calculateCrCl();
@@ -88,9 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dialysisStatus = dialysisSelect.value;
 
         resultsArea.innerHTML = results.map(anti => {
-            const currentSyndrome = syndromeChoice.value;
-            const syndromeRule = EMPIRIC_RULES.find(r => r.syndrome === currentSyndrome);
-            const isPrimary = syndromeRule && syndromeRule.primary.includes(anti.name);
+            const isPrimary = false;
 
             // Generate dosage section if available
             let dosageHTML = '';
@@ -147,64 +170,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSummary(crcl, criteria, results) {
         if (criteria.length === 0) {
             let text = `[Anti Calculator Summary]\n`;
-            text += `Patient: CrCl ${crcl || 'N/A'} ml/min\n`;
+            const manualOn = manualToggle && manualToggle.checked;
+            text += `Patient: CrCl ${crcl || 'N/A'} ml/min${manualOn ? ' (manual)' : ''}\n`;
             text += `Showing all antibiotics (${results.length} total)`;
             summaryText.textContent = text;
             return;
         }
 
         let text = `[Anti Calculator Summary]\n`;
-        text += `Patient: CrCl ${crcl || 'N/A'} ml/min\n`;
+        const manualOn = manualToggle && manualToggle.checked;
+        text += `Patient: CrCl ${crcl || 'N/A'} ml/min${manualOn ? ' (manual)' : ''}\n`;
         text += `Spectrum/Criteria: ${criteria.join(', ')}\n`;
         text += `Suggested Options: ${results.map(r => r.name).join(', ') || 'No single coverage'}`;
 
         summaryText.textContent = text;
     }
 
-    async function copySummary() {
-        const text = summaryText.textContent;
-        let success = false;
 
-        try {
-            // First attempt: Clipboard API
-            if (navigator.clipboard) {
-                await navigator.clipboard.writeText(text);
-                success = true;
-            }
-        } catch (err) {
-            console.warn('Clipboard API failed, using fallback.');
-        }
-
-        if (!success) {
-            // Fallback: Textarea selection (works on file:// and older browsers)
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            textArea.style.top = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                success = document.execCommand('copy');
-            } catch (err) {
-                console.error('Fallback copy failed', err);
-            }
-            document.body.removeChild(textArea);
-        }
-
-        if (success) {
-            const originalText = copyBtn.textContent;
-            copyBtn.textContent = '已複製！';
-            copyBtn.style.background = '#059669';
-            setTimeout(() => {
-                copyBtn.textContent = originalText;
-                copyBtn.style.background = '';
-            }, 2000);
-        } else {
-            alert('無法複製到剪貼簿，請手動選取摘要文字。');
-        }
-    }
 
     // Initial run
     updateUI();

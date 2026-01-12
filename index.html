@@ -22,40 +22,55 @@
 
             <section class="patient-info">
                 <h3>病人基本資訊</h3>
-                <div class="input-grid">
-                    <div class="input-group">
-                        <label>性別</label>
-                        <select id="gender">
-                            <option value="male">男性 (Male)</option>
-                            <option value="female">女性 (Female)</option>
+                <div class="manual-crcl">
+                    <label class="switch">
+                        <input type="checkbox" id="manual-crcl-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <label class="manual-label">手動輸入 CrCl (ml/min)</label>
+                </div>
+
+                <div id="patient-inputs-wrapper">
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label>性別</label>
+                            <select id="gender">
+                                <option value="male">男性 (Male)</option>
+                                <option value="female">女性 (Female)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>年齡</label>
+                            <input type="number" id="age" placeholder="歲" value="65">
+                        </div>
+                        <div class="input-group">
+                            <label>體重 (kg)</label>
+                            <input type="number" id="weight" placeholder="kg" value="60">
+                        </div>
+                        <div class="input-group">
+                            <label>Creatinine (mg/dL)</label>
+                            <input type="number" id="creatinine" step="0.1" placeholder="Cr" value="1.0">
+                        </div>
+
+                        <div class="input-group manual-crcl-input">
+                            <label>手動 CrCl (ml/min)</label>
+                            <input type="number" id="manual-crcl" placeholder="輸入 CrCl" step="0.1">
+                        </div>
+                    </div>
+                    <div class="input-group dialysis-selector">
+                        <label>透析狀態 (Dialysis)</label>
+                        <select id="dialysis">
+                            <option value="none">Not under dialysis</option>
+                            <option value="HD">HD (Hemodialysis)</option>
+                            <option value="PD">PD (Peritoneal Dialysis)</option>
+                            <option value="CRRT">CRRT (Continuous RRT)</option>
                         </select>
                     </div>
-                    <div class="input-group">
-                        <label>年齡</label>
-                        <input type="number" id="age" placeholder="歲" value="65">
-                    </div>
-                    <div class="input-group">
-                        <label>體重 (kg)</label>
-                        <input type="number" id="weight" placeholder="kg" value="60">
-                    </div>
-                    <div class="input-group">
-                        <label>Creatinine (mg/dL)</label>
-                        <input type="number" id="creatinine" step="0.1" placeholder="Cr" value="1.0">
-                    </div>
-                </div>
+                </div> 
                 <div class="crcl-display">
                     <span class="label">預估 CrCl:</span>
                     <span id="crcl-value">--</span>
                     <span class="unit">ml/min</span>
-                </div>
-                <div class="input-group dialysis-selector">
-                    <label>透析狀態 (Dialysis)</label>
-                    <select id="dialysis">
-                        <option value="none">Not under dialysis</option>
-                        <option value="HD">HD (Hemodialysis)</option>
-                        <option value="PD">PD (Peritoneal Dialysis)</option>
-                        <option value="CRRT">CRRT (Continuous RRT)</option>
-                    </select>
                 </div>
             </section>
 
@@ -86,16 +101,6 @@
 
         <!-- Main Content: Results -->
         <main class="main-content">
-            <div class="toolbar">
-                <div class="syndrome-selector">
-                    <label>臨床症候群 (Empiric):</label>
-                    <select id="syndrome-choice">
-                        <option value="">-- 手動選擇 --</option>
-                        <option value="Biliary Tract Infections">膽道感染 (Biliary Tract)</option>
-                    </select>
-                </div>
-                <button id="copy-summary" class="btn-secondary">一鍵複製備註</button>
-            </div>
 
             <div id="results-area" class="results-grid">
                 <!-- Antibiotic cards will be injected here -->
