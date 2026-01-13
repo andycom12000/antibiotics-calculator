@@ -97,6 +97,25 @@
                     <label><input type="checkbox" value="UTI"> UTI</label>
                 </div>
             </section>
+
+            <section class="antibiotic-selector">
+                <h3>選擇抗生素</h3>
+                <p class="selector-hint">從篩選結果中選擇要查看的抗生素（可多選）</p>
+                <div id="antibiotic-multiselect" class="multiselect-container">
+                    <div class="multiselect-header">
+                        <span id="selected-count">尚未選擇</span>
+                        <button type="button" class="multiselect-toggle">▼</button>
+                    </div>
+                    <div class="multiselect-dropdown" style="display: none;">
+                        <div class="multiselect-search">
+                            <input type="text" id="antibiotic-search" placeholder="搜尋抗生素..." />
+                        </div>
+                        <div class="multiselect-options" id="multiselect-options">
+                            <!-- Options will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </section>
         </aside>
 
         <!-- Main Content: Results -->

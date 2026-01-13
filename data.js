@@ -174,7 +174,475 @@ const ANTIBIOTICS = [
       CRRT: "500mg Q6-8H"
     },
     comments: "Excellent anaerobic coverage. Good CNS penetration. Avoid alcohol (disulfiram reaction). Metallic taste common."
-  }
+  },
+  {
+    name: "Amox-Clav/Curam/Augmentin",
+    coverage: { Strep: "v" },
+    resistance: {},
+    penetration: { BBB: true, Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "1000/200mg Q8H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "1000/200mg x1, then 500/100mg QD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "1000/200mg x1, then 500/100mg QD (+ extra dose AD)",
+    },
+    comments: ""
+  },
+  {
+    name: "Cefuroxime (2°)",
+    coverage: { Strep: "v", MSSA: "v" },
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Cefoxitin (2°)",
+    coverage: { Strep: "v", MSSA: "v" },
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "2g Q8H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "2g QD~QOD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "2g QD~QOD (+ extra 1g AD)",
+    },
+    comments: ""
+  },
+  {
+    name: "Cefmetazole (2°)",
+    coverage: { Strep: "v", MSSA: "v", Anae: "+" },
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "2g Q6H~Q8H~Q12H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "1~2g QOD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "1~2g QOD; AD",
+    },
+    comments: "需補充 Vit K1"
+  },
+  {
+    name: "Cefixime (3°)",
+    coverage: {},
+    resistance: {},
+    penetration: {},
+    dosages: [
+      { indication: "PO (General)", dose: "400mg QD or 200mg BID", preferred: true },
+      { indication: "PO (CrCl <15 ml/min)", dose: "200mg QD", preferred: false },
+    ],
+    comments: ""
+  },
+  {
+    name: "Ceftazidime (3°)",
+    coverage: { PsA: "+" },
+    resistance: {},
+    penetration: { BBB: true, Pros: true, Endo: true, Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "1~2g Q8H~Q12H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "1~2g QD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "0.5~1.0g QD; AD",
+    },
+    comments: "不能用於GPC"
+  },
+  {
+    name: "Flomoxef (Flumarin)",
+    coverage: { Strep: "v", MSSA: "v", Anae: "++" },
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "1g Q6H~Q12H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "1g QD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "H/D 前、後 1g",
+    },
+    comments: "需補充 Vit K1"
+  },
+  {
+    name: "Brosym (cefoperazone + sulbactam)(3°)",
+    coverage: { Strep: "v", MSSA: "v", PsA: "+", Anae: "+" },
+    resistance: { MDRAB: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "1~2g Cefoperazone Q12H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "0.5g Sulbactam Q12H", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "0.5g Sulbactam Q12H, AD on dialysis day",
+      CRRT: "1g Sulbactam Q8H",
+    },
+    comments: "需補充 Vit K1"
+  },
+  {
+    name: "Zavicefta (Ceftazidime + Avibactam)",
+    coverage: {},
+    resistance: { CRKP: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "2.5g Q8H, drip > 2hrs", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "0.94g QD, drip > 2hrs", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "As CrCl <= 15; AD",
+    },
+    comments: ""
+  },
+  {
+    name: "Ceftobiprole (5°)",
+    coverage: { Strep: "v", MSSA: "v", PsA: "++" },
+    resistance: { MRSA: "+" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Cefiderocol",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "注入 10 mL 0.9% 生理食鹽水於 vial 中，並輕輕振搖使之溶解成 11.2 ml 的溶液，靜置直到表面泡沫消失 (通常於 2 分鐘內)，並從已配製完成的小瓶 (vial) 中抽 [] ml的溶液，並將其注入一內含 100 mL 的 0.9% 生理食鹽水袋中，完成製備"
+  },
+  {
+    name: "Culin (Imipenem + Cilastatin)",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", PsA: "+", Anae: "++" },
+    resistance: { ESBL: "v", MDRAB: "v" },
+    penetration: { BBB: true, Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "1g Q6H", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "500mg Q12H; AD",
+      CRRT: "500mg~1g Q12H",
+    },
+    comments: "會降低valproate血中濃度甚至導致癲癇發作;\nMeropenem susceptibility should not be relied upon as a surrogate to predict susceptibility to Imipenem"
+  },
+  {
+    name: "Doripenem",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", PsA: "++", Anae: "++" },
+    resistance: { ESBL: "v", MDRAB: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "會降低valproate血中濃度甚至導致癲癇發作;"
+  },
+  {
+    name: "Moxifloxacin",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v", Anae: "+", Atyp: "++" },
+    resistance: {},
+    penetration: { BBB: true, Pros: true },
+    dosages: [
+      { indication: "IV (General)", dose: "400mg QD", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "400mg QD",
+      CRRT: "400mg QD",
+    },
+    comments: "注意 QTc prolonged; \nagainst respiratory and enteric pathogens"
+  },
+  {
+    name: "Nemonoxacin",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Teicoplanin",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v" },
+    resistance: { MRSA: "++" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "480 Q12H x3 doses then 480mg QD", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "480 Q12H x3 doses then 480mg Q3D", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "480 Q12H x3 doses then 480mg Q3D",
+      CRRT: "480 Q12H x3 doses then 480mg QOD",
+    },
+    comments: "Not removed by HD; \nTarget trough (Normal): >15 μg/mL; \nTarget trough (Bone and joint): >20 μg/mL; \nTarget trough (Endocarditis): >30 μg/mL"
+  },
+  {
+    name: "Vancomycin",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v" },
+    resistance: { MRSA: "++" },
+    penetration: { BBB: true, Endo: true, Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "125mg Q6H x10 days", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "125mg Q6H x10 days",
+      CRRT: "125mg Q6H x10 days",
+    },
+    comments: "肺部穿透力差\nMIC>1mg/L的菌株，劑量易造成毒性; \nPeak：\n靜脈輸注完後 1 個小時抽血; 目前已不建議抽測 peak\nTrough：\n到達穩定狀態的抽血時間大約是四個劑量之後，即第 5 個劑量給藥前 30 分鐘抽血"
+  },
+  {
+    name: "Daptomycin",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v" },
+    resistance: { MRSA: "++", VRE: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "400~480mg QD (請計算理想體重)", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "於洗腎日在洗腎後給予",
+    },
+    comments: "會被Pulmonary surfactant分解，故不可用於Pneumonia & 右心 IE\n劑量以 Ideal BW 計算"
+  },
+  {
+    name: "Linezolid (ZYVOX)",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v" },
+    resistance: { MRSA: "++", VRE: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "600mg Q12H", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "600mg Q12H; AD",
+      CRRT: "600mg Q12H",
+    },
+    comments: ""
+  },
+  {
+    name: "Minocycline",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "200mg Q12H", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "200mg Q12H",
+      CRRT: "200mg Q12H",
+    },
+    comments: "Infuse IV doses > 60 minutes;\n前驅物含Mg!!! 腎功能不佳者請監測"
+  },
+  {
+    name: "Tigecycline",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v", Anae: "+", Atyp: "+" },
+    resistance: { MRSA: "++", ESBL: "v", VRE: "v", CRKP: "v" },
+    penetration: {},
+    dosages: [
+      { indication: "IV (General)", dose: "100mg, then 25mg Q12h", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "100mg, then 25mg Q12h",
+      CRRT: "100mg, then 25mg Q12h",
+    },
+    comments: "先天抗藥性: P. aeruginosa, Providencia, Proteus, Morganella\n在血液及尿液中濃度低。單用會造成mortality 上升。\nChild-Pugh Class C: 100 mg IV, then 25 mg IV q12h"
+  },
+  {
+    name: "Erythromycin",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "注意 QTc prolonged"
+  },
+  {
+    name: "Azithromycin",
+    coverage: { Atyp: "++" },
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "注意 QTc prolonged"
+  },
+  {
+    name: "Clindamycin",
+    coverage: { MSSA: "v", Anae: "+" },
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Colistin (polymyxin E)",
+    coverage: { PsA: "+" },
+    resistance: { MRSA: "+", MDRAB: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "2M IU Q8H", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "2M IU Q8H",
+      CRRT: "2M IU Q8H",
+    },
+    comments: "先天抗藥性: Serratia marcescens, Proteus mirabilis, Burkholderia spp., Stenotrophomonas maltophilia, Elizabethkingia spp., Morganella spp., Providencia spp., Moraxella catarrhalis\n1 vial = 2 百萬單位= CoIistimethate sodium (CMS) 160mg = CoIistin 66.8mg\n1 mg CBA (colistin base activity) = 30,000 IU CMS (colistimethate, prodrug) = 2.4 mg CMS"
+  },
+  {
+    name: "Bobimixyn (Polymyxin B)",
+    coverage: {},
+    resistance: {},
+    penetration: {},
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "請勿用於 UTI; 請勿使用 INHL\n先天抗藥性: Serratia marcescens, Proteus mirabilis, Burkholderia spp., Stenotrophomonas maltophilia, Elizabethkingia spp., Morganella spp., Providencia spp., Moraxella catarrhalis"
+  },
+  {
+    name: "Amikacin",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "400~500mg Q12H", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "400~500mg Q12H",
+      CRRT: "400~500mg Q12H",
+    },
+    comments: "IV form 肺部穿透力差\nRun >1 hr; \n一天一次: Target Trough <1 μg/mL; Target peak 56-64 μg/mL; \n一天數次: Target Peak 15–30 μg/mL, Trough 5–10 μg/mL"
+  },
+  {
+    name: "Rifampin",
+    coverage: { Efc: "v", Efm: "v" },
+    resistance: {},
+    penetration: { BBB: true, Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Fosfomycin",
+    coverage: { Strep: "v", MSSA: "v", Efc: "v", Efm: "v" },
+    resistance: { ESBL: "v" },
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "須注意Hypernatremia; 經驗性使用 1g Q12H"
+  },
+  {
+    name: "Fluconazole",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "IV (General)", dose: "100~400mg QD", preferred: true },
+      { indication: "IV/PO (CrCl <15 ml/min)", dose: "50~200mg QD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "50-200 mg q24h (非洗腎日), 100-400 mg (full dose) AD (洗腎日)",
+    },
+    comments: "注意 QTc prolonged"
+  },
+  {
+    name: "Voriconazole",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "PO (General)", dose: "240mg Q12H ST*2, then 120~160mg Q12H", preferred: true },
+      { indication: "PO (CrCl <15 ml/min)", dose: "Avoid", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "240mg Q12H ST*2, then 120~160mg Q12H",
+      CRRT: "240mg Q12H ST*2, then 120~160mg Q12H",
+    },
+    comments: "注意 QTc prolonged"
+  },
+  {
+    name: "Flucytosine",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Anidulafungin = ERAXIS",
+    coverage: {},
+    resistance: {},
+    penetration: {},
+    dosages: [
+      { indication: "PO (General)", dose: "100mg ST, then 50mg QD", preferred: true },
+    ],
+    dialysisDosages: {
+      HD: "100mg ST, then 50mg QD",
+      CRRT: "100mg ST, then 50mg QD",
+    },
+    comments: "不能治療 UTI"
+  },
+  {
+    name: "Isavuconazole",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: "一支cresemba加入5 mL注射用水，輕輕搖晃，使粉末完全溶解, 之後稀釋,  之後再用normal \nsaline稀釋成20cc 從NG管灌, 灌完再沖10cc的水"
+  },
+  {
+    name: "Amphotericin B",
+    coverage: {},
+    resistance: {},
+    penetration: { Bili: true },
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Acyclovir",
+    coverage: {},
+    resistance: {},
+    penetration: {},
+    dosages: [
+      { indication: "IV (General)", dose: "200~500mg Q8H", preferred: true },
+      { indication: "IV (CrCl <15 ml/min)", dose: "100~250mg QD", preferred: false },
+    ],
+    dialysisDosages: {
+      HD: "100~250mg QD; AD",
+      CRRT: "100~250mg QD",
+    },
+    comments: "Herpes simplex virus\nVaricella-zoster virus\n(not CMV)\n腦炎、腦膜炎10/kg\npost-hydration + pre-hydration"
+  },
+  {
+    name: "Ganciclovir",
+    coverage: {},
+    resistance: {},
+    penetration: {},
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
+  {
+    name: "Peramivir = Rapiacta",
+    coverage: {},
+    resistance: {},
+    penetration: {},
+    dosages: [
+      { indication: "General", dose: "No data", preferred: true },
+    ],
+    comments: ""
+  },
 ];
 
 const EMPIRIC_RULES = [

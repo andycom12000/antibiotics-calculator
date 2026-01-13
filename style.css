@@ -27,19 +27,20 @@ body {
 
 .app-container {
     display: grid;
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 480px 1fr;
     min-height: 100vh;
+    gap: 0;
 }
 
 /* Sidebar Styling */
 .sidebar {
-    background: white;
-    border-right: 1px solid var(--border);
-    padding: 2rem;
+    background: #f8fafb;
+    border-right: 2px solid var(--border);
+    padding: 1.5rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
 }
 
 .app-header h1 {
@@ -210,13 +211,126 @@ h3 {
     border-radius: 4px;
 }
 
+/* Antibiotic Selector - Multiselect */
+.antibiotic-selector {
+    margin-top: 0.5rem;
+}
+
+.selector-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.multiselect-container {
+    position: relative;
+    width: 100%;
+}
+
+.multiselect-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.multiselect-header:hover {
+    border-color: var(--primary);
+}
+
+.multiselect-toggle {
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 0.25rem;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    max-height: 350px;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.multiselect-search {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.multiselect-search input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.multiselect-options {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.multiselect-option {
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-left: 4px solid transparent;
+}
+
+.multiselect-option:hover {
+    background: #f1f5f9;
+}
+
+.multiselect-option.selected {
+    background: #e0f2fe;
+}
+
+.multiselect-option input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.multiselect-option label {
+    cursor: pointer;
+    flex: 1;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Antibiotic Category Colors */
+.category-penicillin { border-left-color: #93C47D !important; background-color: rgba(147, 196, 125, 0.1); }
+.category-cephalosporin { border-left-color: #FFD966 !important; background-color: rgba(255, 217, 102, 0.1); }
+.category-carbapenem { border-left-color: #A4C2F4 !important; background-color: rgba(164, 194, 244, 0.1); }
+.category-quinolone { border-left-color: #F4B183 !important; background-color: rgba(244, 177, 131, 0.1); }
+.category-glycopeptide { border-left-color: #D5A6BD !important; background-color: rgba(213, 166, 189, 0.1); }
+.category-other { border-left-color: #B4D7B4 !important; background-color: rgba(180, 215, 180, 0.08); }
+
 /* Main Content Styling */
 .main-content {
-    padding: 2rem;
+    padding: 2rem 2.5rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    background: #fafbfc;
 }
  
 
@@ -241,9 +355,9 @@ h3 {
 }
 
 .results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
     min-height: 200px;
 }
 
@@ -259,18 +373,19 @@ h3 {
 
 .anti-card {
     background: white;
-    padding: 1.25rem;
+    padding: 1.5rem;
     border-radius: 12px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    transition: transform 0.2s, border-color 0.2s;
+    border: 2px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s;
     position: relative;
     overflow: hidden;
+    border-left: 5px solid var(--primary);
 }
 
 .anti-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--primary-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-left-color: var(--primary-light);
 }
 
 .anti-card.primary::before {
@@ -287,83 +402,90 @@ h3 {
 }
 
 .anti-card h4 {
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
     color: var(--primary);
+    font-size: 1.15rem;
+    font-weight: 700;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
 }
 
 .dosage-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
 }
 
 .dosage-section h5 {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
+    letter-spacing: 0.03em;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
 }
 
 .dosage-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 0.4rem;
-    border-radius: 6px;
-    background: #f8fafc;
-    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    background: white;
+    border: 2px solid #e2e8f0;
     transition: all 0.2s;
 }
 
 .dosage-item.preferred {
     background: #d1fae5;
-    border-color: #a7f3d0;
-    font-weight: 600;
+    border-color: #10b981;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1);
 }
 
 .dosage-item .indication {
-    font-size: 0.8rem;
-    color: var(--text-main);
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 500;
     flex: 1;
 }
 
 .dosage-item .dose {
-    font-size: 0.85rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--primary);
-    margin-left: 0.5rem;
+    margin-left: 1rem;
+    font-family: 'Courier New', monospace;
 }
 
 .dosage-item.preferred .dose {
-    color: #065f46;
+    color: #059669;
 }
 
 .comments-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: #fffbeb;
+    border-radius: 8px;
+    border-left: 4px solid #f59e0b;
 }
 
 .comments-section h5 {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
+    letter-spacing: 0.03em;
+    color: #92400e;
+    margin-bottom: 0.75rem;
 }
 
 .comments-section p {
-    font-size: 0.8rem;
-    line-height: 1.6;
-    color: #475569;
-    background: #fff7ed;
-    padding: 0.75rem;
-    border-radius: 6px;
-    border-left: 3px solid #fb923c;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #78350f;
+    white-space: pre-line;
 }
 
 .dialysis-dosage {

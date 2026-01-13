@@ -11,7 +11,16 @@
       "mcp__chrome-devtools__click",
       "mcp__chrome-devtools__fill",
       "mcp__chrome-devtools__evaluate_script",
-      "mcp__chrome-devtools__wait_for"
+      "mcp__chrome-devtools__wait_for",
+      "Bash(npx -y chrome-devtools-mcp fetch:*)",
+      "Bash(npm run start:*)",
+      "Bash(npx chrome-devtools-mcp:*)",
+      "Bash(python extract_ap.py:*)",
+      "Bash(python extract_ap_fixed.py:*)",
+      "Bash(python extract_ap_cp950.py:*)",
+      "Bash(python update_comments.py:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)"
     ]
   }
 }

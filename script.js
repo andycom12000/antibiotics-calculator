@@ -1,4 +1,29 @@
-// Data is loaded from data.js - no duplicate definitions needed here
+// State management
+let selectedAntibiotics = new Set();
+let filteredAntibiotics = [];
+
+// Categorize antibiotics based on name
+function categorizeAntibiotic(name) {
+    const nameLower = name.toLowerCase();
+
+    if (nameLower.includes('cillin') || nameLower.includes('amox') || nameLower.includes('ampicillin') ||
+        nameLower.includes('oxacillin') || nameLower.includes('unasyn') || nameLower.includes('tazocin')) {
+        return 'penicillin';
+    }
+    if (nameLower.includes('cef') || nameLower.includes('ceph')) {
+        return 'cephalosporin';
+    }
+    if (nameLower.includes('penem') || nameLower.includes('culin')) {
+        return 'carbapenem';
+    }
+    if (nameLower.includes('floxacin') || nameLower.includes('levofloxacin') || nameLower.includes('moxifloxacin') || nameLower.includes('ciprofloxacin')) {
+        return 'quinolone';
+    }
+    if (nameLower.includes('vancomycin') || nameLower.includes('teicoplanin') || nameLower.includes('daptomycin') || nameLower.includes('linezolid')) {
+        return 'glycopeptide';
+    }
+    return 'other';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const inputs = ['gender', 'age', 'weight', 'creatinine'];
@@ -11,20 +36,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputsWrapper = document.getElementById('patient-inputs-wrapper');
     const dialysisSelect = document.getElementById('dialysis');
 
+    // Multiselect elements
+    const multiselectContainer = document.getElementById('antibiotic-multiselect');
+    const multiselectHeader = multiselectContainer.querySelector('.multiselect-header');
+    const multiselectDropdown = multiselectContainer.querySelector('.multiselect-dropdown');
+    const multiselectOptions = document.getElementById('multiselect-options');
+    const selectedCountSpan = document.getElementById('selected-count');
+    const searchInput = document.getElementById('antibiotic-search');
+
     // Initialize listeners
     inputElements.forEach(el => el.addEventListener('input', updateUI));
     document.querySelectorAll('input[type="checkbox"]').forEach(el => {
-        // Keep checkbox changes for pathogen selection, but avoid double-handling the manual toggle here
         if (el.id !== 'manual-crcl-toggle') el.addEventListener('change', updateUI);
     });
 
-    // Manual CrCl toggle: show a single CrCl input inside the grid and hide original inputs
+    // Manual CrCl toggle
     manualToggle.addEventListener('change', () => {
         const manualOn = manualToggle.checked;
         if (manualOn) {
             if (inputsWrapper) inputsWrapper.classList.add('manual-on');
             if (manualInput) manualInput.focus();
-            // Uncheck all other checkboxes (keep only manual toggle state)
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                 if (cb.id && cb.id !== 'manual-crcl-toggle') cb.checked = false;
             });
@@ -37,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (manualInput) manualInput.addEventListener('input', updateUI);
 
-    // Apply initial manual toggle state in case of persisted HTML state
     if (manualToggle && manualToggle.checked) {
         if (inputsWrapper) inputsWrapper.classList.add('manual-on');
         if (manualInput) manualInput.focus();
@@ -45,6 +75,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     dialysisSelect.addEventListener('change', updateUI);
+
+    // Multiselect toggle
+    multiselectHeader.addEventListener('click', () => {
+        const isVisible = multiselectDropdown.style.display === 'block';
+        multiselectDropdown.style.display = isVisible ? 'none' : 'block';
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!multiselectContainer.contains(e.target)) {
+            multiselectDropdown.style.display = 'none';
+        }
+    });
+
+    // Search functionality
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const options = multiselectOptions.querySelectorAll('.multiselect-option');
+        options.forEach(option => {
+            const text = option.textContent.toLowerCase();
+            option.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+        });
+    });
 
     function calculateCrCl() {
         const manualOn = manualToggle && manualToggle.checked;
@@ -70,29 +123,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getSelectedCriteria() {
         const checked = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
-            .filter(el => el.id !== 'manual-crcl-toggle')
+            .filter(el => el.id !== 'manual-crcl-toggle' && el.value && !el.id.startsWith('anti-'))
             .map(el => el.value);
         return checked;
     }
-
-
 
     function updateUI() {
         const crcl = calculateCrCl();
         crclDisplay.textContent = crcl || '--';
 
         const criteria = getSelectedCriteria();
-        const results = filterAntibiotics(criteria);
-        renderResults(results, criteria);
-        updateSummary(crcl, criteria, results);
+        filteredAntibiotics = filterAntibiotics(criteria);
+        updateMultiselectOptions();
+        renderResults();
+        updateSummary(crcl, criteria);
     }
 
     function filterAntibiotics(criteria) {
-        // Show all antibiotics when no criteria are selected
         if (criteria.length === 0) return ANTIBIOTICS;
 
         return ANTIBIOTICS.filter(anti => {
-            // Check if it covers ALL selected criteria
             return criteria.every(c => {
                 const inCoverage = anti.coverage[c] || anti.resistance[c];
                 const inPenetration = anti.penetration[c];
@@ -101,26 +151,81 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderResults(results, criteria) {
-        if (results.length === 0) {
+    function updateMultiselectOptions() {
+        multiselectOptions.innerHTML = '';
+
+        if (filteredAntibiotics.length === 0) {
+            multiselectOptions.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">沒有符合條件的抗生素</div>';
+            return;
+        }
+
+        filteredAntibiotics.forEach(anti => {
+            const category = categorizeAntibiotic(anti.name);
+            const option = document.createElement('div');
+            option.className = `multiselect-option category-${category}`;
+            if (selectedAntibiotics.has(anti.name)) {
+                option.classList.add('selected');
+            }
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `anti-${anti.name.replace(/[^a-zA-Z0-9]/g, '')}`;
+            checkbox.checked = selectedAntibiotics.has(anti.name);
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    selectedAntibiotics.add(anti.name);
+                } else {
+                    selectedAntibiotics.delete(anti.name);
+                }
+                option.classList.toggle('selected', e.target.checked);
+                updateSelectedCount();
+                renderResults();
+                updateSummary(calculateCrCl(), getSelectedCriteria());
+            });
+
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
+            label.textContent = anti.name;
+
+            option.appendChild(checkbox);
+            option.appendChild(label);
+            multiselectOptions.appendChild(option);
+        });
+
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const count = selectedAntibiotics.size;
+        selectedCountSpan.textContent = count === 0 ? '尚未選擇' : `已選擇 ${count} 個抗生素`;
+    }
+
+    function renderResults() {
+        // If no antibiotics selected, show filtered results
+        const antibioticsToShow = selectedAntibiotics.size > 0
+            ? filteredAntibiotics.filter(anti => selectedAntibiotics.has(anti.name))
+            : [];
+
+        if (antibioticsToShow.length === 0) {
             resultsArea.innerHTML = `
                 <div class="empty-state">
-                    找不到能涵蓋所有勾選條件的單一藥物。請調整選擇條件。
+                    ${selectedAntibiotics.size === 0
+                        ? '請從左側選單選擇要查看的抗生素'
+                        : '找不到符合條件的抗生素'}
                 </div>`;
             return;
         }
 
         const dialysisStatus = dialysisSelect.value;
 
-        resultsArea.innerHTML = results.map(anti => {
-            const isPrimary = false;
+        resultsArea.innerHTML = antibioticsToShow.map(anti => {
+            const category = categorizeAntibiotic(anti.name);
 
-            // Generate dosage section if available
             let dosageHTML = '';
-            if (anti.dosages && anti.dosages.length > 0) {
+            if (dialysisStatus === 'none' && anti.dosages && anti.dosages.length > 0) {
                 dosageHTML = `
                     <div class="dosage-section">
-                        <h5>建議劑量</h5>
+                        <h5>💊 建議劑量</h5>
                         ${anti.dosages.map(d => `
                             <div class="dosage-item ${d.preferred ? 'preferred' : ''}">
                                 <span class="indication">${d.indication}</span>
@@ -131,12 +236,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
-            // Generate dialysis dosage section if on dialysis
             let dialysisHTML = '';
             if (dialysisStatus !== 'none' && anti.dialysisDosages && anti.dialysisDosages[dialysisStatus]) {
                 dialysisHTML = `
                     <div class="dosage-section dialysis-dosage">
-                        <h5>透析劑量 (Dialysis Dosing)</h5>
+                        <h5>💊 透析劑量 (Dialysis Dosing)</h5>
                         <div class="dosage-item preferred">
                             <span class="indication">${dialysisStatus}</span>
                             <span class="dose">${anti.dialysisDosages[dialysisStatus]}</span>
@@ -145,19 +249,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
-            // Generate comments section if available
             let commentsHTML = '';
             if (anti.comments) {
                 commentsHTML = `
                     <div class="comments-section">
-                        <h5>備註</h5>
+                        <h5>📋 重要備註</h5>
                         <p>${anti.comments}</p>
                     </div>
                 `;
             }
 
             return `
-                <div class="anti-card ${isPrimary ? 'primary' : ''}">
+                <div class="anti-card category-${category}">
                     <h4>${anti.name}</h4>
                     ${dosageHTML}
                     ${dialysisHTML}
@@ -167,26 +270,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    function updateSummary(crcl, criteria, results) {
-        if (criteria.length === 0) {
-            let text = `[Anti Calculator Summary]\n`;
-            const manualOn = manualToggle && manualToggle.checked;
-            text += `Patient: CrCl ${crcl || 'N/A'} ml/min${manualOn ? ' (manual)' : ''}\n`;
-            text += `Showing all antibiotics (${results.length} total)`;
-            summaryText.textContent = text;
-            return;
-        }
-
+    function updateSummary(crcl, criteria) {
         let text = `[Anti Calculator Summary]\n`;
         const manualOn = manualToggle && manualToggle.checked;
         text += `Patient: CrCl ${crcl || 'N/A'} ml/min${manualOn ? ' (manual)' : ''}\n`;
-        text += `Spectrum/Criteria: ${criteria.join(', ')}\n`;
-        text += `Suggested Options: ${results.map(r => r.name).join(', ') || 'No single coverage'}`;
+
+        if (criteria.length > 0) {
+            text += `Spectrum/Criteria: ${criteria.join(', ')}\n`;
+        }
+
+        text += `Filtered antibiotics: ${filteredAntibiotics.length}\n`;
+        text += `Selected for display: ${selectedAntibiotics.size}`;
 
         summaryText.textContent = text;
     }
-
-
 
     // Initial run
     updateUI();
