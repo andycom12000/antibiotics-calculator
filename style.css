@@ -263,7 +263,7 @@ h3 {
     box-shadow: var(--shadow);
     max-height: 350px;
     overflow: hidden;
-    z-index: 1000;
+    z-index: 9999;
 }
 
 .multiselect-search {
@@ -563,6 +563,12 @@ h3 {
         border-bottom: 1px solid var(--border);
         padding: 1.5rem;
         overflow-y: visible;
+        overflow-x: visible;
+    }
+
+    .antibiotic-selector {
+        position: relative;
+        z-index: 10;
     }
 
     .main-content {
@@ -595,7 +601,13 @@ h3 {
     .sidebar {
         padding: 1rem;
         max-width: 100%;
-        overflow-x: hidden;
+        overflow-x: visible;
+        overflow-y: visible;
+    }
+
+    .antibiotic-selector {
+        position: relative;
+        z-index: 10;
     }
 
     .main-content {
@@ -745,6 +757,7 @@ h3 {
 @media (max-width: 400px) {
     .sidebar {
         padding: 0.75rem;
+        overflow: visible;
     }
 
     .main-content {
