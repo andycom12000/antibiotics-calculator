@@ -19,7 +19,6 @@
       "Bash(python extract_ap_fixed.py:*)",
       "Bash(python extract_ap_cp950.py:*)",
       "Bash(python update_comments.py:*)",
-      "Bash(python:*)",
       "Bash(ls:*)"
     ]
   }
