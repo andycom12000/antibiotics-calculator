@@ -76,6 +76,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dialysisSelect.addEventListener('change', updateUI);
 
+    // Reset button
+    const resetBtn = document.getElementById('reset-btn');
+    resetBtn.addEventListener('click', () => {
+        // Reset patient inputs
+        document.getElementById('gender').value = 'male';
+        document.getElementById('age').value = '65';
+        document.getElementById('weight').value = '60';
+        document.getElementById('creatinine').value = '1.0';
+
+        // Reset dialysis
+        dialysisSelect.value = 'none';
+
+        // Reset manual CrCl mode
+        if (manualToggle.checked) {
+            manualToggle.checked = false;
+            inputsWrapper.classList.remove('manual-on');
+            inputElements.forEach(el => el.disabled = false);
+        }
+        if (manualInput) manualInput.value = '';
+
+        // Reset all spectrum/criteria checkboxes
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            if (cb.id !== 'manual-crcl-toggle') {
+                cb.checked = false;
+            }
+        });
+
+        // Clear selected antibiotics
+        selectedAntibiotics.clear();
+
+        // Clear search input
+        searchInput.value = '';
+
+        // Update UI
+        updateUI();
+    });
+
     // Multiselect toggle
     multiselectHeader.addEventListener('click', () => {
         const isVisible = multiselectDropdown.style.display === 'block';
