@@ -130,7 +130,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateUI() {
         const crcl = calculateCrCl();
-        crclDisplay.textContent = crcl || '--';
+        const dialysisStatus = dialysisSelect.value;
+        const crclDisplayBox = document.querySelector('.crcl-display');
+        const crclLabel = crclDisplayBox.querySelector('.label');
+        const crclUnit = crclDisplayBox.querySelector('.unit');
+
+        // Update display based on dialysis status
+        if (dialysisStatus !== 'none') {
+            // Dialysis mode: show dialysis status
+            crclDisplayBox.classList.add('dialysis-warning');
+            crclLabel.textContent = '透析狀態:';
+            crclDisplay.textContent = dialysisStatus;
+            crclUnit.textContent = '';
+        } else {
+            // Normal mode: show CrCl
+            crclDisplayBox.classList.remove('dialysis-warning');
+            crclLabel.textContent = '預估 CrCl:';
+            crclDisplay.textContent = crcl || '--';
+            crclUnit.textContent = 'ml/min';
+        }
 
         const criteria = getSelectedCriteria();
         filteredAntibiotics = filterAntibiotics(criteria);
@@ -169,23 +187,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.id = `anti-${anti.name.replace(/[^a-zA-Z0-9]/g, '')}`;
             checkbox.checked = selectedAntibiotics.has(anti.name);
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
+
+            const label = document.createElement('span');
+            label.textContent = anti.name;
+
+            // Click on entire option area to toggle
+            option.addEventListener('click', () => {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
                     selectedAntibiotics.add(anti.name);
                 } else {
                     selectedAntibiotics.delete(anti.name);
                 }
-                option.classList.toggle('selected', e.target.checked);
+                option.classList.toggle('selected', checkbox.checked);
                 updateSelectedCount();
                 renderResults();
                 updateSummary(calculateCrCl(), getSelectedCriteria());
             });
-
-            const label = document.createElement('label');
-            label.htmlFor = checkbox.id;
-            label.textContent = anti.name;
 
             option.appendChild(checkbox);
             option.appendChild(label);
