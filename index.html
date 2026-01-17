@@ -74,27 +74,37 @@
                 </div>
             </section>
 
-            <section class="selection-section">
-                <h3>病原菌 Spectrum</h3>
-                <div class="checkbox-grid" id="spectrum-grid">
-                    <label><input type="checkbox" value="Strep"> Strep.</label>
-                    <label><input type="checkbox" value="MSSA"> MSSA</label>
-                    <label><input type="checkbox" value="Efc"> E. faecalis</label>
-                    <label><input type="checkbox" value="GNB"> GNB</label>
-                    <label><input type="checkbox" value="Enbac"> Ent.bac</label>
-                    <label><input type="checkbox" value="PsA"> PsA</label>
-                    <label><input type="checkbox" value="Anae"> Anae (厭氧)</label>
+            <section class="selection-section collapsible collapsed">
+                <div class="section-header">
+                    <h3>病原菌 Spectrum</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="checkbox-grid" id="spectrum-grid">
+                        <label><input type="checkbox" value="Strep"> Strep.</label>
+                        <label><input type="checkbox" value="MSSA"> MSSA</label>
+                        <label><input type="checkbox" value="Efc"> E. faecalis</label>
+                        <label><input type="checkbox" value="GNB"> GNB</label>
+                        <label><input type="checkbox" value="Enbac"> Ent.bac</label>
+                        <label><input type="checkbox" value="PsA"> PsA</label>
+                        <label><input type="checkbox" value="Anae"> Anae (厭氧)</label>
+                    </div>
                 </div>
             </section>
 
-            <section class="selection-section">
-                <h3>抗藥性 / 特殊部位</h3>
-                <div class="checkbox-grid">
-                    <label><input type="checkbox" value="MRSA"> MRSA</label>
-                    <label><input type="checkbox" value="ESBL"> ESBL</label>
-                    <label><input type="checkbox" value="BBB"> CNS (BBB)</label>
-                    <label><input type="checkbox" value="Bili"> Biliary</label>
-                    <label><input type="checkbox" value="UTI"> UTI</label>
+            <section class="selection-section collapsible collapsed">
+                <div class="section-header">
+                    <h3>抗藥性 / 特殊部位</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="checkbox-grid">
+                        <label><input type="checkbox" value="MRSA"> MRSA</label>
+                        <label><input type="checkbox" value="ESBL"> ESBL</label>
+                        <label><input type="checkbox" value="BBB"> CNS (BBB)</label>
+                        <label><input type="checkbox" value="Bili"> Biliary</label>
+                        <label><input type="checkbox" value="UTI"> UTI</label>
+                    </div>
                 </div>
             </section>
 
@@ -129,13 +139,23 @@
                 <!-- Antibiotic cards will be injected here -->
             </div>
 
-            <section class="summary-preview">
-                <h3>結果摘要預覽</h3>
-                <div id="summary-text" class="summary-box">
-                    尚未產生摘要...
+        </main>
+
+        <!-- Right Panel: Coverage Analysis -->
+        <aside class="coverage-panel">
+            <section class="coverage-section covered">
+                <h3>✓ 已覆蓋病原菌</h3>
+                <div id="covered-pathogens" class="pathogen-list">
+                    <p class="empty-hint">尚未選擇抗生素</p>
                 </div>
             </section>
-        </main>
+            <section class="coverage-section uncovered">
+                <h3>✗ 未覆蓋病原菌</h3>
+                <div id="uncovered-pathogens" class="pathogen-list">
+                    <p class="empty-hint">尚未選擇抗生素</p>
+                </div>
+            </section>
+        </aside>
     </div>
     <script src="data.js"></script>
     <script src="script.js"></script>

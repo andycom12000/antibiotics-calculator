@@ -2,6 +2,25 @@
 let selectedAntibiotics = new Set();
 let filteredAntibiotics = [];
 
+// All pathogens with display names
+const ALL_PATHOGENS = {
+    // Coverage pathogens
+    'Strep': 'Streptococcus',
+    'MSSA': 'MSSA',
+    'Efc': 'E. faecalis',
+    'Efm': 'E. faecium',
+    'GNB': 'GNB (一般)',
+    'Enbac': 'Enterobacter',
+    'PsA': 'Pseudomonas',
+    'Anae': '厭氧菌',
+    // Resistance pathogens
+    'MRSA': 'MRSA',
+    'ESBL': 'ESBL',
+    'VRE': 'VRE',
+    'MDRAB': 'MDRAB',
+    'CRKP': 'CRKP'
+};
+
 // Categorize antibiotics based on name
 function categorizeAntibiotic(name) {
     const nameLower = name.toLowerCase();
@@ -79,28 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset button
     const resetBtn = document.getElementById('reset-btn');
     resetBtn.addEventListener('click', () => {
-        // Reset patient inputs
-        document.getElementById('gender').value = 'male';
-        document.getElementById('age').value = '65';
-        document.getElementById('weight').value = '60';
-        document.getElementById('creatinine').value = '1.0';
+        // Save collapsed states before reset
+        const collapsibleSections = document.querySelectorAll('.collapsible');
+        const collapsedStates = Array.from(collapsibleSections).map(section =>
+            section.classList.contains('collapsed')
+        );
 
-        // Reset dialysis
-        dialysisSelect.value = 'none';
-
-        // Reset manual CrCl mode
-        if (manualToggle.checked) {
-            manualToggle.checked = false;
-            inputsWrapper.classList.remove('manual-on');
-            inputElements.forEach(el => el.disabled = false);
-        }
-        if (manualInput) manualInput.value = '';
-
-        // Reset all spectrum/criteria checkboxes
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            if (cb.id !== 'manual-crcl-toggle') {
-                cb.checked = false;
-            }
+        // Reset all spectrum/criteria checkboxes (not patient data)
+        document.querySelectorAll('.selection-section input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
         });
 
         // Clear selected antibiotics
@@ -109,8 +115,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear search input
         searchInput.value = '';
 
+        // Update selected count display immediately
+        selectedCountSpan.textContent = '尚未選擇';
+
         // Update UI
         updateUI();
+
+        // Restore collapsed states after reset
+        collapsibleSections.forEach((section, index) => {
+            if (collapsedStates[index]) {
+                section.classList.add('collapsed');
+            } else {
+                section.classList.remove('collapsed');
+            }
+        });
     });
 
     // Multiselect toggle
@@ -192,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMultiselectOptions();
         renderResults();
         updateSummary(crcl, criteria);
+        updateCoveragePanel();
     }
 
     function filterAntibiotics(criteria) {
@@ -211,10 +230,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (filteredAntibiotics.length === 0) {
             multiselectOptions.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">沒有符合條件的抗生素</div>';
+            selectedAntibiotics.clear();
+            updateSelectedCount();
             return;
         }
 
-        filteredAntibiotics.forEach(anti => {
+        // Remove selected antibiotics that are no longer in filtered list
+        const filteredNames = new Set(filteredAntibiotics.map(a => a.name));
+        for (const name of [...selectedAntibiotics]) {
+            if (!filteredNames.has(name)) {
+                selectedAntibiotics.delete(name);
+            }
+        }
+
+        // Define category order for sorting
+        const categoryOrder = {
+            'penicillin': 1,
+            'cephalosporin': 2,
+            'carbapenem': 3,
+            'quinolone': 4,
+            'glycopeptide': 5,
+            'other': 6
+        };
+
+        // Sort antibiotics by category
+        const sortedAntibiotics = [...filteredAntibiotics].sort((a, b) => {
+            const catA = categorizeAntibiotic(a.name);
+            const catB = categorizeAntibiotic(b.name);
+            return (categoryOrder[catA] || 99) - (categoryOrder[catB] || 99);
+        });
+
+        sortedAntibiotics.forEach(anti => {
             const category = categorizeAntibiotic(anti.name);
             const option = document.createElement('div');
             option.className = `multiselect-option category-${category}`;
@@ -224,23 +270,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
+            checkbox.id = `anti-select-${anti.name.replace(/\s+/g, '-')}`;
             checkbox.checked = selectedAntibiotics.has(anti.name);
 
-            const label = document.createElement('span');
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
             label.textContent = anti.name;
 
-            // Click on entire option area to toggle
-            option.addEventListener('click', () => {
-                checkbox.checked = !checkbox.checked;
-                if (checkbox.checked) {
-                    selectedAntibiotics.add(anti.name);
-                } else {
+            // Toggle function for selection
+            const toggleSelection = () => {
+                const isSelected = selectedAntibiotics.has(anti.name);
+                if (isSelected) {
                     selectedAntibiotics.delete(anti.name);
+                } else {
+                    selectedAntibiotics.add(anti.name);
                 }
-                option.classList.toggle('selected', checkbox.checked);
+                checkbox.checked = !isSelected;
+                option.classList.toggle('selected', !isSelected);
                 updateSelectedCount();
                 renderResults();
                 updateSummary(calculateCrCl(), getSelectedCriteria());
+                updateCoveragePanel();
+            };
+
+            // Click on entire option area to toggle (but prevent double-toggle from checkbox/label)
+            option.addEventListener('click', (e) => {
+                if (e.target !== checkbox && e.target !== label) {
+                    toggleSelection();
+                }
+            });
+
+            // Handle checkbox change directly
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                toggleSelection();
+            });
+
+            // Handle label click
+            label.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSelection();
             });
 
             option.appendChild(checkbox);
@@ -327,6 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateSummary(crcl, criteria) {
+        if (!summaryText) return;
+
         let text = `[Anti Calculator Summary]\n`;
         const manualOn = manualToggle && manualToggle.checked;
         text += `Patient: CrCl ${crcl || 'N/A'} ml/min${manualOn ? ' (manual)' : ''}\n`;
@@ -340,6 +412,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
         summaryText.textContent = text;
     }
+
+    function updateCoveragePanel() {
+        const coveredContainer = document.getElementById('covered-pathogens');
+        const uncoveredContainer = document.getElementById('uncovered-pathogens');
+
+        if (!coveredContainer || !uncoveredContainer) return;
+
+        // Get selected antibiotic objects
+        const selectedAntiList = ANTIBIOTICS.filter(a => selectedAntibiotics.has(a.name));
+
+        if (selectedAntiList.length === 0) {
+            coveredContainer.innerHTML = '<p class="empty-hint">尚未選擇抗生素</p>';
+            uncoveredContainer.innerHTML = '<p class="empty-hint">尚未選擇抗生素</p>';
+            return;
+        }
+
+        // Calculate coverage for each pathogen
+        const coverageMap = {};
+        for (const pathogenKey of Object.keys(ALL_PATHOGENS)) {
+            coverageMap[pathogenKey] = { covered: false, level: '' };
+        }
+
+        // Check coverage from all selected antibiotics
+        for (const anti of selectedAntiList) {
+            // Check coverage object
+            if (anti.coverage) {
+                for (const [pathogen, level] of Object.entries(anti.coverage)) {
+                    if (level && level !== '') {
+                        coverageMap[pathogen] = { covered: true, level: level };
+                    }
+                }
+            }
+            // Check resistance object (these are also coverage capabilities)
+            if (anti.resistance) {
+                for (const [pathogen, level] of Object.entries(anti.resistance)) {
+                    if (level && level !== '') {
+                        coverageMap[pathogen] = { covered: true, level: level };
+                    }
+                }
+            }
+        }
+
+        // Separate into covered and uncovered
+        const covered = [];
+        const uncovered = [];
+
+        for (const [key, displayName] of Object.entries(ALL_PATHOGENS)) {
+            if (coverageMap[key] && coverageMap[key].covered) {
+                covered.push({ key, displayName, level: coverageMap[key].level });
+            } else {
+                uncovered.push({ key, displayName });
+            }
+        }
+
+        // Render covered pathogens
+        if (covered.length > 0) {
+            coveredContainer.innerHTML = covered.map(p => `
+                <span class="pathogen-tag covered">
+                    ${p.displayName}
+                    ${p.level && p.level !== 'v' ? `<span class="coverage-level">${p.level}</span>` : ''}
+                </span>
+            `).join('');
+        } else {
+            coveredContainer.innerHTML = '<p class="empty-hint">無覆蓋病原菌</p>';
+        }
+
+        // Render uncovered pathogens
+        if (uncovered.length > 0) {
+            uncoveredContainer.innerHTML = uncovered.map(p => `
+                <span class="pathogen-tag uncovered">${p.displayName}</span>
+            `).join('');
+        } else {
+            uncoveredContainer.innerHTML = '<p class="empty-hint">已覆蓋所有病原菌</p>';
+        }
+    }
+
+    // Collapsible sections
+    document.querySelectorAll('.collapsible .section-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const section = header.closest('.collapsible');
+            section.classList.toggle('collapsed');
+        });
+    });
 
     // Initial run
     updateUI();
