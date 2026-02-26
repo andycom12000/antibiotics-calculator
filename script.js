@@ -1,10 +1,11 @@
 // State management
-let selectedAntibiotics = new Set();
-let filteredAntibiotics = [];
+let selectedAntibiotics = new Set();    // Set of antibiotic names
+let filteredAntibiotics = [];           // Array of API-format antibiotic objects
+let allAntibiotics = [];                // Full list from API or data.js
 
-// All pathogens with display names
+// All pathogens with display names (used for coverage panel)
 const ALL_PATHOGENS = {
-    // Coverage pathogens
+    // Coverage pathogens (spectrum)
     'Strep': 'Streptococcus',
     'MSSA': 'MSSA',
     'Efc': 'E. faecalis',
@@ -13,6 +14,7 @@ const ALL_PATHOGENS = {
     'Enbac': 'Enterobacter',
     'PsA': 'Pseudomonas',
     'Anae': '厭氧菌',
+    'Atyp': 'Atypical',
     // Resistance pathogens
     'MRSA': 'MRSA',
     'ESBL': 'ESBL',
@@ -21,30 +23,43 @@ const ALL_PATHOGENS = {
     'CRKP': 'CRKP'
 };
 
-// Categorize antibiotics based on name
-function categorizeAntibiotic(name) {
-    const nameLower = name.toLowerCase();
+// Category display order and UI class mapping
+const CATEGORY_ORDER = {
+    'penicillin': 1,
+    'cephalosporin': 2,
+    'carbapenem': 3,
+    'fluoroquinolone': 4,
+    'quinolone': 4,           // alias
+    'glycopeptide': 5,
+    'oxazolidinone': 6,
+    'tetracycline': 7,
+    'macrolide': 8,
+    'lincosamide': 9,
+    'polymyxin': 10,
+    'aminoglycoside': 11,
+    'other': 12
+};
 
-    if (nameLower.includes('cillin') || nameLower.includes('amox') || nameLower.includes('ampicillin') ||
-        nameLower.includes('oxacillin') || nameLower.includes('unasyn') || nameLower.includes('tazocin')) {
-        return 'penicillin';
-    }
-    if (nameLower.includes('cef') || nameLower.includes('ceph')) {
-        return 'cephalosporin';
-    }
-    if (nameLower.includes('penem') || nameLower.includes('culin')) {
-        return 'carbapenem';
-    }
-    if (nameLower.includes('floxacin') || nameLower.includes('levofloxacin') || nameLower.includes('moxifloxacin') || nameLower.includes('ciprofloxacin')) {
-        return 'quinolone';
-    }
-    if (nameLower.includes('vancomycin') || nameLower.includes('teicoplanin') || nameLower.includes('daptomycin') || nameLower.includes('linezolid')) {
-        return 'glycopeptide';
-    }
-    return 'other';
+// Map API categories to CSS class names
+function categoryToCssClass(category) {
+    const mapping = {
+        'penicillin': 'penicillin',
+        'cephalosporin': 'cephalosporin',
+        'carbapenem': 'carbapenem',
+        'fluoroquinolone': 'quinolone',
+        'glycopeptide': 'glycopeptide',
+        'oxazolidinone': 'glycopeptide',  // similar color
+        'tetracycline': 'other',
+        'macrolide': 'other',
+        'lincosamide': 'other',
+        'polymyxin': 'other',
+        'aminoglycoside': 'other',
+        'other': 'other',
+    };
+    return mapping[category] || 'other';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const inputs = ['gender', 'age', 'weight', 'creatinine'];
     const inputElements = inputs.map(id => document.getElementById(id));
     const crclDisplay = document.getElementById('crcl-value');
@@ -63,7 +78,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedCountSpan = document.getElementById('selected-count');
     const searchInput = document.getElementById('antibiotic-search');
 
-    // Initialize listeners
+    // ─── Initialize data ─────────────────────────────────────
+
+    // Show loading state
+    resultsArea.innerHTML = '<div class="empty-state">載入中...</div>';
+
+    allAntibiotics = await ApiClient.init();
+    filteredAntibiotics = allAntibiotics;
+
+    console.log(`[App] Loaded ${allAntibiotics.length} antibiotics (backend: ${ApiClient.isBackendAvailable})`);
+
+    // ─── Event listeners ─────────────────────────────────────
+
     inputElements.forEach(el => el.addEventListener('input', updateUI));
     document.querySelectorAll('input[type="checkbox"]').forEach(el => {
         if (el.id !== 'manual-crcl-toggle') el.addEventListener('change', updateUI);
@@ -98,30 +124,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset button
     const resetBtn = document.getElementById('reset-btn');
     resetBtn.addEventListener('click', () => {
-        // Save collapsed states before reset
         const collapsibleSections = document.querySelectorAll('.collapsible');
         const collapsedStates = Array.from(collapsibleSections).map(section =>
             section.classList.contains('collapsed')
         );
 
-        // Reset all spectrum/criteria checkboxes (not patient data)
         document.querySelectorAll('.selection-section input[type="checkbox"]').forEach(cb => {
             cb.checked = false;
         });
 
-        // Clear selected antibiotics
         selectedAntibiotics.clear();
-
-        // Clear search input
         searchInput.value = '';
-
-        // Update selected count display immediately
         selectedCountSpan.textContent = '尚未選擇';
 
-        // Update UI
         updateUI();
 
-        // Restore collapsed states after reset
         collapsibleSections.forEach((section, index) => {
             if (collapsedStates[index]) {
                 section.classList.add('collapsed');
@@ -137,14 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
         multiselectDropdown.style.display = isVisible ? 'none' : 'block';
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!multiselectContainer.contains(e.target)) {
             multiselectDropdown.style.display = 'none';
         }
     });
 
-    // Search functionality
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const options = multiselectOptions.querySelectorAll('.multiselect-option');
@@ -153,6 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
             option.style.display = text.includes(searchTerm) ? 'flex' : 'none';
         });
     });
+
+    // ─── Core functions ──────────────────────────────────────
 
     function calculateCrCl() {
         const manualOn = manualToggle && manualToggle.checked;
@@ -183,22 +200,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return checked;
     }
 
-    function updateUI() {
+    async function updateUI() {
         const crcl = calculateCrCl();
         const dialysisStatus = dialysisSelect.value;
         const crclDisplayBox = document.querySelector('.crcl-display');
         const crclLabel = crclDisplayBox.querySelector('.label');
         const crclUnit = crclDisplayBox.querySelector('.unit');
 
-        // Update display based on dialysis status
         if (dialysisStatus !== 'none') {
-            // Dialysis mode: show dialysis status
             crclDisplayBox.classList.add('dialysis-warning');
             crclLabel.textContent = '透析狀態:';
             crclDisplay.textContent = dialysisStatus;
             crclUnit.textContent = '';
         } else {
-            // Normal mode: show CrCl
             crclDisplayBox.classList.remove('dialysis-warning');
             crclLabel.textContent = '預估 CrCl:';
             crclDisplay.textContent = crcl || '--';
@@ -206,23 +220,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const criteria = getSelectedCriteria();
-        filteredAntibiotics = filterAntibiotics(criteria);
+
+        // Separate pathogen criteria from penetration site criteria
+        const penetrationSites = ['BBB', 'Bili', 'UTI'];
+        const pathogenCriteria = criteria.filter(c => !penetrationSites.includes(c));
+        const siteCriteria = criteria.filter(c => penetrationSites.includes(c));
+
+        // Use API for pathogen filtering
+        let results = await ApiClient.searchByCoverage(pathogenCriteria);
+
+        // Client-side filter for penetration sites (not in API search)
+        if (siteCriteria.length > 0) {
+            results = results.filter(ab => {
+                return siteCriteria.every(site => {
+                    // Check penetration_sites array from API response
+                    if (ab.penetration_sites && ab.penetration_sites.includes(site)) return true;
+                    // Fallback: check legacy data
+                    if (ab._legacy && ab._legacy.penetration && ab._legacy.penetration[site]) return true;
+                    return false;
+                });
+            });
+        }
+
+        filteredAntibiotics = results;
         updateMultiselectOptions();
         renderResults();
         updateSummary(crcl, criteria);
         updateCoveragePanel();
-    }
-
-    function filterAntibiotics(criteria) {
-        if (criteria.length === 0) return ANTIBIOTICS;
-
-        return ANTIBIOTICS.filter(anti => {
-            return criteria.every(c => {
-                const inCoverage = anti.coverage[c] || anti.resistance[c];
-                const inPenetration = anti.penetration[c];
-                return inCoverage || inPenetration;
-            });
-        });
     }
 
     function updateMultiselectOptions() {
@@ -235,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Remove selected antibiotics that are no longer in filtered list
+        // Remove selected antibiotics not in filtered list
         const filteredNames = new Set(filteredAntibiotics.map(a => a.name));
         for (const name of [...selectedAntibiotics]) {
             if (!filteredNames.has(name)) {
@@ -243,27 +267,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Define category order for sorting
-        const categoryOrder = {
-            'penicillin': 1,
-            'cephalosporin': 2,
-            'carbapenem': 3,
-            'quinolone': 4,
-            'glycopeptide': 5,
-            'other': 6
-        };
-
-        // Sort antibiotics by category
+        // Sort by category
         const sortedAntibiotics = [...filteredAntibiotics].sort((a, b) => {
-            const catA = categorizeAntibiotic(a.name);
-            const catB = categorizeAntibiotic(b.name);
-            return (categoryOrder[catA] || 99) - (categoryOrder[catB] || 99);
+            const orderA = CATEGORY_ORDER[a.category] || 99;
+            const orderB = CATEGORY_ORDER[b.category] || 99;
+            return orderA - orderB;
         });
 
         sortedAntibiotics.forEach(anti => {
-            const category = categorizeAntibiotic(anti.name);
+            const cssClass = categoryToCssClass(anti.category);
             const option = document.createElement('div');
-            option.className = `multiselect-option category-${category}`;
+            option.className = `multiselect-option category-${cssClass}`;
             if (selectedAntibiotics.has(anti.name)) {
                 option.classList.add('selected');
             }
@@ -277,7 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
             label.htmlFor = checkbox.id;
             label.textContent = anti.name;
 
-            // Toggle function for selection
             const toggleSelection = () => {
                 const isSelected = selectedAntibiotics.has(anti.name);
                 if (isSelected) {
@@ -293,20 +306,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateCoveragePanel();
             };
 
-            // Click on entire option area to toggle (but prevent double-toggle from checkbox/label)
             option.addEventListener('click', (e) => {
                 if (e.target !== checkbox && e.target !== label) {
                     toggleSelection();
                 }
             });
 
-            // Handle checkbox change directly
             checkbox.addEventListener('change', (e) => {
                 e.stopPropagation();
                 toggleSelection();
             });
 
-            // Handle label click
             label.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -327,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderResults() {
-        // If no antibiotics selected, show filtered results
         const antibioticsToShow = selectedAntibiotics.size > 0
             ? filteredAntibiotics.filter(anti => selectedAntibiotics.has(anti.name))
             : [];
@@ -345,48 +354,89 @@ document.addEventListener('DOMContentLoaded', () => {
         const dialysisStatus = dialysisSelect.value;
 
         resultsArea.innerHTML = antibioticsToShow.map(anti => {
-            const category = categorizeAntibiotic(anti.name);
+            const cssClass = categoryToCssClass(anti.category);
 
+            // Get dosage and notes data
+            const legacy = anti._legacy;
+            const hasLegacy = !!legacy;
+
+            // Dosage section
             let dosageHTML = '';
-            if (dialysisStatus === 'none' && anti.dosages && anti.dosages.length > 0) {
-                dosageHTML = `
-                    <div class="dosage-section">
-                        <h5>💊 建議劑量</h5>
-                        ${anti.dosages.map(d => `
-                            <div class="dosage-item ${d.preferred ? 'preferred' : ''}">
-                                <span class="indication">${d.indication}</span>
-                                <span class="dose">${d.dose}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            let dialysisHTML = '';
-            if (dialysisStatus !== 'none' && anti.dialysisDosages && anti.dialysisDosages[dialysisStatus]) {
-                dialysisHTML = `
-                    <div class="dosage-section dialysis-dosage">
-                        <h5>💊 透析劑量 (Dialysis Dosing)</h5>
-                        <div class="dosage-item preferred">
-                            <span class="indication">${dialysisStatus}</span>
-                            <span class="dose">${anti.dialysisDosages[dialysisStatus]}</span>
+            if (dialysisStatus === 'none') {
+                if (anti.regimens && anti.regimens.length > 0) {
+                    // API format: use regimens
+                    dosageHTML = _renderRegimens(anti.regimens);
+                } else if (hasLegacy && legacy.dosages && legacy.dosages.length > 0) {
+                    // Fallback: data.js format
+                    dosageHTML = `
+                        <div class="dosage-section">
+                            <h5>💊 建議劑量</h5>
+                            ${legacy.dosages.map(d => `
+                                <div class="dosage-item ${d.preferred ? 'preferred' : ''}">
+                                    <span class="indication">${d.indication}</span>
+                                    <span class="dose">${d.dose}</span>
+                                </div>
+                            `).join('')}
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             }
 
+            // Dialysis section
+            let dialysisHTML = '';
+            if (dialysisStatus !== 'none') {
+                if (anti.dialysis_dosages && anti.dialysis_dosages.length > 0) {
+                    // API format
+                    const matching = anti.dialysis_dosages.filter(d => d.dialysis_type === dialysisStatus);
+                    if (matching.length > 0) {
+                        dialysisHTML = `
+                            <div class="dosage-section dialysis-dosage">
+                                <h5>💊 透析劑量 (${dialysisStatus})</h5>
+                                ${matching.map(d => `
+                                    <div class="dosage-item preferred">
+                                        <span class="indication">${d.dialysis_type}</span>
+                                        <span class="dose">${d.dose_text}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                } else if (hasLegacy && legacy.dialysisDosages && legacy.dialysisDosages[dialysisStatus]) {
+                    // Fallback: data.js format
+                    dialysisHTML = `
+                        <div class="dosage-section dialysis-dosage">
+                            <h5>💊 透析劑量 (${dialysisStatus})</h5>
+                            <div class="dosage-item preferred">
+                                <span class="indication">${dialysisStatus}</span>
+                                <span class="dose">${legacy.dialysisDosages[dialysisStatus]}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Notes/Comments section
             let commentsHTML = '';
-            if (anti.comments) {
+            if (anti.notes && anti.notes.length > 0) {
+                // API format
                 commentsHTML = `
                     <div class="comments-section">
                         <h5>📋 重要備註</h5>
-                        <p>${anti.comments}</p>
+                        ${anti.notes.map(n => `<p>${n.content}</p>`).join('')}
+                    </div>
+                `;
+            } else if (hasLegacy && legacy.comments) {
+                // Fallback: data.js format
+                commentsHTML = `
+                    <div class="comments-section">
+                        <h5>📋 重要備註</h5>
+                        <p>${legacy.comments}</p>
                     </div>
                 `;
             }
 
             return `
-                <div class="anti-card category-${category}">
+                <div class="anti-card category-${cssClass}">
                     <h4>${anti.name}</h4>
                     ${dosageHTML}
                     ${dialysisHTML}
@@ -394,6 +444,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Render regimens from API format with structured dosage display.
+     */
+    function _renderRegimens(regimens) {
+        if (!regimens || regimens.length === 0) return '';
+
+        const items = regimens.map(r => {
+            const doseTexts = (r.dosage_values || []).map(dv => dv.dose_text).join(', ');
+            const routeLabel = r.route || '';
+            const indication = r.indication || '';
+            const displayIndication = [routeLabel, indication].filter(Boolean).join(' - ');
+
+            return `
+                <div class="dosage-item ${r.is_preferred ? 'preferred' : ''}">
+                    <span class="indication">${displayIndication}</span>
+                    <span class="dose">${doseTexts || 'No data'}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="dosage-section">
+                <h5>💊 建議劑量</h5>
+                ${items}
+            </div>
+        `;
     }
 
     function updateSummary(crcl, criteria) {
@@ -409,6 +487,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         text += `Filtered antibiotics: ${filteredAntibiotics.length}\n`;
         text += `Selected for display: ${selectedAntibiotics.size}`;
+        if (ApiClient.isBackendAvailable) {
+            text += `\n[API mode]`;
+        }
 
         summaryText.textContent = text;
     }
@@ -420,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!coveredContainer || !uncoveredContainer) return;
 
         // Get selected antibiotic objects
-        const selectedAntiList = ANTIBIOTICS.filter(a => selectedAntibiotics.has(a.name));
+        const selectedAntiList = filteredAntibiotics.filter(a => selectedAntibiotics.has(a.name));
 
         if (selectedAntiList.length === 0) {
             coveredContainer.innerHTML = '<p class="empty-hint">尚未選擇抗生素</p>';
@@ -428,27 +509,37 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Calculate coverage for each pathogen
+        // Calculate coverage using API data format
         const coverageMap = {};
         for (const pathogenKey of Object.keys(ALL_PATHOGENS)) {
             coverageMap[pathogenKey] = { covered: false, level: '' };
         }
 
-        // Check coverage from all selected antibiotics
         for (const anti of selectedAntiList) {
-            // Check coverage object
-            if (anti.coverage) {
-                for (const [pathogen, level] of Object.entries(anti.coverage)) {
-                    if (level && level !== '') {
-                        coverageMap[pathogen] = { covered: true, level: level };
+            // API format: covered_pathogens is an array of codes
+            if (anti.covered_pathogens) {
+                for (const code of anti.covered_pathogens) {
+                    if (coverageMap[code] !== undefined) {
+                        coverageMap[code] = { covered: true, level: 'v' };
                     }
                 }
             }
-            // Check resistance object (these are also coverage capabilities)
-            if (anti.resistance) {
-                for (const [pathogen, level] of Object.entries(anti.resistance)) {
-                    if (level && level !== '') {
-                        coverageMap[pathogen] = { covered: true, level: level };
+
+            // Fallback: also check legacy coverage/resistance for detail levels
+            if (anti._legacy) {
+                const legacy = anti._legacy;
+                if (legacy.coverage) {
+                    for (const [pathogen, level] of Object.entries(legacy.coverage)) {
+                        if (level && level !== '' && coverageMap[pathogen] !== undefined) {
+                            coverageMap[pathogen] = { covered: true, level };
+                        }
+                    }
+                }
+                if (legacy.resistance) {
+                    for (const [pathogen, level] of Object.entries(legacy.resistance)) {
+                        if (level && level !== '' && coverageMap[pathogen] !== undefined) {
+                            coverageMap[pathogen] = { covered: true, level };
+                        }
                     }
                 }
             }
@@ -466,7 +557,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Render covered pathogens
         if (covered.length > 0) {
             coveredContainer.innerHTML = covered.map(p => `
                 <span class="pathogen-tag covered">
@@ -478,7 +568,6 @@ document.addEventListener('DOMContentLoaded', () => {
             coveredContainer.innerHTML = '<p class="empty-hint">無覆蓋病原菌</p>';
         }
 
-        // Render uncovered pathogens
         if (uncovered.length > 0) {
             uncoveredContainer.innerHTML = uncovered.map(p => `
                 <span class="pathogen-tag uncovered">${p.displayName}</span>
@@ -488,7 +577,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Collapsible sections
+    // ─── Collapsible sections ────────────────────────────────
+
     document.querySelectorAll('.collapsible .section-header').forEach(header => {
         header.addEventListener('click', () => {
             const section = header.closest('.collapsible');
@@ -496,6 +586,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Initial run
+    // ─── Initial render ──────────────────────────────────────
     updateUI();
 });

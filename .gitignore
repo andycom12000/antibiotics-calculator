@@ -1,2 +1,13 @@
 node_modules/
 tmpclaude*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Backend
+backend/.env
+backend/*.db

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anti 計算機 - 管理介面</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <nav class="admin-nav">
+            <div class="nav-header">
+                <h1>Admin</h1>
+                <p>抗生素資料庫管理</p>
+                <a href="index.html" class="back-link">&larr; 回到計算機</a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-section="antibiotics">
+                    <span class="nav-icon">💊</span> 抗生素管理
+                </li>
+                <li class="nav-item" data-section="coverage">
+                    <span class="nav-icon">🦠</span> 抗菌譜矩陣
+                </li>
+                <li class="nav-item" data-section="dosages">
+                    <span class="nav-icon">💉</span> 劑量方案
+                </li>
+                <li class="nav-item" data-section="empiric">
+                    <span class="nav-icon">📋</span> 經驗治療
+                </li>
+                <li class="nav-item" data-section="institutions">
+                    <span class="nav-icon">🏥</span> 機構管理
+                </li>
+            </ul>
+            <div class="nav-footer">
+                <div class="api-status" id="api-status">
+                    <span class="status-dot offline"></span>
+                    <span>API 狀態: 檢查中...</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Antibiotics Section -->
+            <section class="admin-section active" id="section-antibiotics">
+                <div class="section-toolbar">
+                    <h2>抗生素管理</h2>
+                    <div class="toolbar-actions">
+                        <input type="text" id="ab-search" class="search-input" placeholder="搜尋抗生素...">
+                        <button class="btn btn-primary" id="btn-add-ab">+ 新增抗生素</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="ab-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名稱</th>
+                                <th>分類</th>
+                                <th>類型</th>
+                                <th>世代</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ab-tbody">
+                            <tr><td colspan="6" class="loading-cell">載入中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Coverage Matrix Section -->
+            <section class="admin-section" id="section-coverage">
+                <div class="section-toolbar">
+                    <h2>抗菌譜矩陣</h2>
+                    <div class="toolbar-actions">
+                        <select id="coverage-ab-select" class="select-input">
+                            <option value="">選擇抗生素...</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="coverage-editor" class="coverage-editor">
+                    <p class="hint">請先選擇一個抗生素來編輯其抗菌譜覆蓋範圍。</p>
+                </div>
+            </section>
+
+            <!-- Dosage Section -->
+            <section class="admin-section" id="section-dosages">
+                <div class="section-toolbar">
+                    <h2>劑量方案管理</h2>
+                    <div class="toolbar-actions">
+                        <select id="dosage-ab-select" class="select-input">
+                            <option value="">選擇抗生素...</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="dosage-editor" class="dosage-editor">
+                    <p class="hint">請先選擇一個抗生素來管理其劑量方案。</p>
+                </div>
+            </section>
+
+            <!-- Empiric Section -->
+            <section class="admin-section" id="section-empiric">
+                <div class="section-toolbar">
+                    <h2>經驗治療管理</h2>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-primary" id="btn-add-syndrome">+ 新增症候群</button>
+                    </div>
+                </div>
+                <div id="empiric-list" class="card-list">
+                    <p class="loading-cell">載入中...</p>
+                </div>
+            </section>
+
+            <!-- Institutions Section -->
+            <section class="admin-section" id="section-institutions">
+                <div class="section-toolbar">
+                    <h2>機構管理</h2>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-primary" id="btn-add-inst">+ 新增機構</button>
+                    </div>
+                </div>
+                <div id="institution-list" class="card-list">
+                    <p class="loading-cell">載入中...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none;">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Title</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+            <div class="modal-footer" id="modal-footer"></div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+
+</html>
