@@ -55,6 +55,29 @@ body {
     color: var(--text-muted);
 }
 
+.app-header {
+    position: relative;
+}
+
+.admin-link {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.admin-link:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
 h3 {
     font-size: 0.9rem;
     text-transform: uppercase;
