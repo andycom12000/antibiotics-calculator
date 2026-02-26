@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedCountSpan.textContent = count === 0 ? '尚未選擇' : `已選擇 ${count} 個抗生素`;
     }
 
-    function renderResults() {
+    async function renderResults() {
         const antibioticsToShow = selectedAntibiotics.size > 0
             ? filteredAntibiotics.filter(anti => selectedAntibiotics.has(anti.name))
             : [];
@@ -351,14 +351,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Fetch full details for each selected antibiotic (regimens, notes, dialysis)
+        const detailedAntibiotics = await Promise.all(
+            antibioticsToShow.map(async (anti) => {
+                if (anti.regimens) return anti; // already has detail
+                if (anti.id && typeof ApiClient !== 'undefined') {
+                    try {
+                        const detail = await ApiClient.getAntibiotic(anti.id);
+                        if (detail) return { ...anti, ...detail };
+                    } catch {}
+                }
+                return anti;
+            })
+        );
+
         const dialysisStatus = dialysisSelect.value;
 
-        resultsArea.innerHTML = antibioticsToShow.map(anti => {
+        resultsArea.innerHTML = detailedAntibiotics.map(anti => {
             const cssClass = categoryToCssClass(anti.category);
 
             // Get dosage and notes data
             const legacy = anti._legacy;
             const hasLegacy = !!legacy;
+
+            // Collect dialysis dosages from regimens if not at top level
+            const allDialysisDosages = anti.dialysis_dosages ||
+                (anti.regimens || []).flatMap(r => r.dialysis_dosages || []);
 
             // Dosage section
             let dosageHTML = '';
@@ -385,9 +403,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Dialysis section
             let dialysisHTML = '';
             if (dialysisStatus !== 'none') {
-                if (anti.dialysis_dosages && anti.dialysis_dosages.length > 0) {
+                if (allDialysisDosages.length > 0) {
                     // API format
-                    const matching = anti.dialysis_dosages.filter(d => d.dialysis_type === dialysisStatus);
+                    const matching = allDialysisDosages.filter(d => d.dialysis_type === dialysisStatus);
                     if (matching.length > 0) {
                         dialysisHTML = `
                             <div class="dosage-section dialysis-dosage">
