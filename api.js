@@ -5,7 +5,7 @@
  * is unavailable (offline mode / development without backend).
  */
 const ApiClient = (() => {
-    const BASE_URL = 'http://localhost:8000';
+    const BASE_URL = window.location.origin;
     let _backendAvailable = false;
     let _cachedAntibiotics = null; // API format cache
     let _cachedPathogens = null;
@@ -14,7 +14,7 @@ const ApiClient = (() => {
 
     async function checkBackend() {
         try {
-            const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(2000) });
+            const res = await fetch(`${BASE_URL}/api/pathogens`, { signal: AbortSignal.timeout(2000) });
             _backendAvailable = res.ok;
         } catch {
             _backendAvailable = false;

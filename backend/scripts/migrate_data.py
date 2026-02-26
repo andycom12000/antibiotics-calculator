@@ -266,8 +266,8 @@ def migrate(session: Session) -> dict:
         ab = Antibiotic(
             name=name,
             generic_name=None,
-            category=detect_category(name),
-            agent_type=detect_agent_type(name),
+            category=detect_category(name).value,
+            agent_type=detect_agent_type(name).value,
             generation=detect_generation(name),
         )
         session.add(ab)
@@ -319,7 +319,7 @@ def migrate(session: Session) -> dict:
 
             regimen = DosageRegimen(
                 antibiotic_id=ab.id,
-                route=route,
+                route=route.value,
                 indication=indication,
                 is_preferred=is_preferred,
                 sort_order=j,
@@ -345,7 +345,7 @@ def migrate(session: Session) -> dict:
                         continue
                     session.add(DialysisDosage(
                         regimen_id=regimen.id,
-                        dialysis_type=dtype,
+                        dialysis_type=dtype.value,
                         dose_text=dial_text,
                     ))
 
@@ -401,7 +401,7 @@ def migrate(session: Session) -> dict:
                 session.add(EmpiricRecommendation(
                     syndrome_id=syndrome.id,
                     antibiotic_id=ab.id,
-                    tier=tier_enum,
+                    tier=tier_enum.value,
                     is_addon=is_addon,
                     addon_notes=ab_name_raw if is_addon else None,
                 ))

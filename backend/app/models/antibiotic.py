@@ -26,6 +26,11 @@ from app.models.enums import (
 )
 
 
+def _enum_values(enum_cls):
+    """Return enum values for SQLAlchemy Enum column (use .value not .name)."""
+    return [e.value for e in enum_cls]
+
+
 # ─── 1. antibiotics ───────────────────────────────────────────────
 
 
@@ -36,10 +41,10 @@ class Antibiotic(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), unique=True)
     generic_name: Mapped[Optional[str]] = mapped_column(String(255))
     category: Mapped[AntibioticCategory] = mapped_column(
-        Enum(AntibioticCategory, name="antibiotic_category")
+        Enum(AntibioticCategory, name="antibiotic_category", values_callable=_enum_values)
     )
     agent_type: Mapped[AgentType] = mapped_column(
-        Enum(AgentType, name="agent_type"), default=AgentType.antibacterial
+        Enum(AgentType, name="agent_type", values_callable=_enum_values), default=AgentType.antibacterial
     )
     generation: Mapped[Optional[str]] = mapped_column(String(10))
     notes_for_doctor: Mapped[Optional[str]] = mapped_column(Text)
@@ -76,7 +81,7 @@ class Pathogen(Base):
     code: Mapped[str] = mapped_column(String(50), unique=True)
     name: Mapped[str] = mapped_column(String(255))
     pathogen_type: Mapped[PathogenType] = mapped_column(
-        Enum(PathogenType, name="pathogen_type")
+        Enum(PathogenType, name="pathogen_type", values_callable=_enum_values)
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -171,12 +176,12 @@ class DosageRegimen(Base):
     antibiotic_id: Mapped[int] = mapped_column(
         ForeignKey("antibiotics.id", ondelete="CASCADE")
     )
-    route: Mapped[Route] = mapped_column(Enum(Route, name="route"))
+    route: Mapped[Route] = mapped_column(Enum(Route, name="route", values_callable=_enum_values))
     indication: Mapped[Optional[str]] = mapped_column(String(255))
     dose_descriptor: Mapped[Optional[str]] = mapped_column(String(255))
     is_weight_based: Mapped[bool] = mapped_column(Boolean, default=False)
     weight_type: Mapped[Optional[WeightType]] = mapped_column(
-        Enum(WeightType, name="weight_type")
+        Enum(WeightType, name="weight_type", values_callable=_enum_values)
     )
     is_preferred: Mapped[bool] = mapped_column(Boolean, default=False)
     fixed_duration: Mapped[Optional[str]] = mapped_column(String(100))
@@ -257,7 +262,7 @@ class DialysisDosage(Base):
         ForeignKey("dosage_regimens.id", ondelete="CASCADE")
     )
     dialysis_type: Mapped[DialysisType] = mapped_column(
-        Enum(DialysisType, name="dialysis_type")
+        Enum(DialysisType, name="dialysis_type", values_callable=_enum_values)
     )
     dose_text: Mapped[str] = mapped_column(Text)
     notes: Mapped[Optional[str]] = mapped_column(Text)
@@ -276,7 +281,7 @@ class Toxicity(Base):
         ForeignKey("antibiotics.id", ondelete="CASCADE")
     )
     category: Mapped[ToxicityCategory] = mapped_column(
-        Enum(ToxicityCategory, name="toxicity_category")
+        Enum(ToxicityCategory, name="toxicity_category", values_callable=_enum_values)
     )
     description: Mapped[str] = mapped_column(Text)
 
@@ -310,7 +315,7 @@ class EmpiricRecommendation(Base):
     antibiotic_id: Mapped[int] = mapped_column(
         ForeignKey("antibiotics.id", ondelete="CASCADE")
     )
-    tier: Mapped[EmpiricTier] = mapped_column(Enum(EmpiricTier, name="empiric_tier"))
+    tier: Mapped[EmpiricTier] = mapped_column(Enum(EmpiricTier, name="empiric_tier", values_callable=_enum_values))
     is_addon: Mapped[bool] = mapped_column(Boolean, default=False)
     addon_notes: Mapped[Optional[str]] = mapped_column(Text)
 

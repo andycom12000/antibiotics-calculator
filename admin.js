@@ -2,7 +2,7 @@
  * Admin UI for Antibiotic Calculator
  */
 const Admin = (() => {
-    const BASE_URL = 'http://localhost:8000';
+    const BASE_URL = window.location.origin;
     let antibiotics = [];
     let pathogens = [];
     let penetrationSites = [];
@@ -25,7 +25,7 @@ const Admin = (() => {
     async function checkApi() {
         const statusEl = document.getElementById('api-status');
         try {
-            const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(2000) });
+            const res = await fetch(`${BASE_URL}/api/pathogens`, { signal: AbortSignal.timeout(2000) });
             if (res.ok) {
                 statusEl.innerHTML = '<span class="status-dot online"></span><span>API 已連線</span>';
                 return true;
