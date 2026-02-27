@@ -11,3 +11,6 @@ venv/
 # Backend
 backend/.env
 backend/*.db
+
+# Environment
+.env
