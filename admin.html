@@ -12,29 +12,39 @@
 </head>
 
 <body>
+    <!-- Hamburger Menu Button (mobile) -->
+    <button class="hamburger-btn" id="hamburger-btn" aria-label="開啟選單">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    <div class="nav-overlay" id="nav-overlay"></div>
+
     <div class="admin-container">
         <!-- Sidebar Navigation -->
-        <nav class="admin-nav">
+        <nav class="admin-nav" id="admin-nav" role="navigation" aria-label="管理選單">
             <div class="nav-header">
                 <h1>Admin</h1>
                 <p>抗生素資料庫管理</p>
                 <a href="index.html" class="back-link">&larr; 回到計算機</a>
             </div>
             <ul class="nav-menu">
-                <li class="nav-item active" data-section="antibiotics">
-                    <span class="nav-icon">💊</span> 抗生素管理
+                <li class="nav-item active" data-section="antibiotics" role="button" tabindex="0">
+                    <span class="nav-icon">Rx</span> 抗生素管理
                 </li>
-                <li class="nav-item" data-section="coverage">
-                    <span class="nav-icon">🦠</span> 抗菌譜矩陣
+                <li class="nav-item" data-section="coverage" role="button" tabindex="0">
+                    <span class="nav-icon">Sp</span> 抗菌譜矩陣
                 </li>
-                <li class="nav-item" data-section="dosages">
-                    <span class="nav-icon">💉</span> 劑量方案
+                <li class="nav-item" data-section="dosages" role="button" tabindex="0">
+                    <span class="nav-icon">Ds</span> 劑量方案
                 </li>
-                <li class="nav-item" data-section="empiric">
-                    <span class="nav-icon">📋</span> 經驗治療
+                <li class="nav-item" data-section="empiric" role="button" tabindex="0">
+                    <span class="nav-icon">Em</span> 經驗治療
                 </li>
-                <li class="nav-item" data-section="institutions">
-                    <span class="nav-icon">🏥</span> 機構管理
+                <li class="nav-item" data-section="institutions" role="button" tabindex="0">
+                    <span class="nav-icon">In</span> 機構管理
                 </li>
             </ul>
             <div class="nav-footer">

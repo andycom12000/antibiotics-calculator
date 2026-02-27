@@ -51,13 +51,41 @@ const Admin = (() => {
     // ─── Navigation ──────────────────────────────────────────
 
     function setupNavigation() {
+        const nav = document.getElementById('admin-nav');
+        const overlay = document.getElementById('nav-overlay');
+        const hamburger = document.getElementById('hamburger-btn');
+
+        function closeMobileMenu() {
+            nav.classList.remove('open');
+            overlay.classList.remove('open');
+        }
+
+        // Hamburger toggle
+        hamburger.addEventListener('click', () => {
+            const isOpen = nav.classList.toggle('open');
+            overlay.classList.toggle('open', isOpen);
+        });
+
+        // Overlay click to close
+        overlay.addEventListener('click', closeMobileMenu);
+
+        // Nav item click
         document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
+            function activate() {
                 document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
                 const section = item.dataset.section;
                 document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
                 document.getElementById(`section-${section}`).classList.add('active');
+                closeMobileMenu();
+            }
+
+            item.addEventListener('click', activate);
+            item.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activate();
+                }
             });
         });
     }
