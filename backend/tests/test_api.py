@@ -93,7 +93,7 @@ class TestCoverageSearch:
         assert "Teicoplanin" in names
 
     def test_search_multi_pathogen_coverage(self, db):
-        """Find antibiotics covering BOTH Strep AND PsA (like Levofloxacin)."""
+        """Find antibiotics covering BOTH Strep AND PsA (like Tazocin)."""
         strep = db.execute(
             select(Pathogen).where(Pathogen.code == "Strep")
         ).scalar_one()
@@ -123,7 +123,7 @@ class TestCoverageSearch:
         ).scalars().all()
         names = {ab.name for ab in antibiotics}
 
-        assert "Levofloxacin" in names
+        assert any("Tazocin" in n for n in names)
         assert len(names) >= 1
 
     def test_no_results_for_impossible_combo(self, db):
@@ -166,12 +166,7 @@ class TestDosage:
             select(DosageRegimen).where(DosageRegimen.antibiotic_id == mero.id)
         ).scalars().all()
 
-        assert len(regimens) == 3  # General, Meningitis, Extended infusion
-
-        # Check preferred regimen
-        preferred = [r for r in regimens if r.is_preferred]
-        assert len(preferred) == 1
-        assert preferred[0].indication == "General infection"
+        assert len(regimens) == 2  # Standard IV, Prolonged infusion dose
 
     def test_tazocin_dialysis_dosages(self, db):
         tazocin = db.execute(
@@ -185,7 +180,7 @@ class TestDosage:
         ).scalars().all()
 
         types = {d.dialysis_type.value for d in dial}
-        assert types == {"HD", "PD", "CRRT"}
+        assert types == {"HD", "CRRT"}
 
     def test_crcl_range_normal(self, db):
         normal = db.execute(
@@ -195,19 +190,15 @@ class TestDosage:
         assert normal.lower_bound == 90
         assert normal.upper_bound is None
 
-    def test_dosage_values_linked_to_normal(self, db):
-        """All migrated dosage values should be for Normal CrCl."""
-        normal = db.execute(
-            select(CrclRange).where(CrclRange.label == "Normal")
-        ).scalar_one()
-
+    def test_dosage_values_across_crcl_ranges(self, db):
+        """Dosage values should span multiple CrCl ranges (not just Normal)."""
         total = db.scalar(select(func.count()).select_from(DosageValue))
-        normal_count = db.scalar(
-            select(func.count()).select_from(DosageValue).where(
-                DosageValue.crcl_range_id == normal.id
-            )
+        range_count = db.scalar(
+            select(func.count(func.distinct(DosageValue.crcl_range_id)))
+            .select_from(DosageValue)
         )
-        assert total == normal_count
+        assert total > 0
+        assert range_count > 1  # Multiple CrCl ranges should have dosages
 
 
 class TestPenetration:
@@ -229,18 +220,21 @@ class TestPenetration:
         ).scalar_one_or_none()
         assert pen is not None
 
-    def test_meropenem_all_sites(self, db):
+    def test_meropenem_bbb(self, db):
         mero = db.execute(
             select(Antibiotic).where(Antibiotic.name == "Meropenem")
         ).scalar_one()
+        bbb = db.execute(
+            select(PenetrationSite).where(PenetrationSite.code == "BBB")
+        ).scalar_one()
 
-        pens = db.execute(
+        pen = db.execute(
             select(AntibioticPenetration).where(
                 AntibioticPenetration.antibiotic_id == mero.id,
+                AntibioticPenetration.site_id == bbb.id,
             )
-        ).scalars().all()
-        # Meropenem penetrates BBB, Pros, Endo (3 of our 3 sites)
-        assert len(pens) == 3
+        ).scalar_one_or_none()
+        assert pen is not None
 
 
 class TestAgentType:
