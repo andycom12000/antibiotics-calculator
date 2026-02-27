@@ -28,7 +28,7 @@
                         <input type="checkbox" id="manual-crcl-toggle">
                         <span class="slider"></span>
                     </label>
-                    <label class="manual-label">手動輸入 CrCl (ml/min)</label>
+                    <label class="manual-label" for="manual-crcl-toggle">手動輸入 CrCl (ml/min)</label>
                 </div>
 
                 <div id="patient-inputs-wrapper">
@@ -76,9 +76,9 @@
             </section>
 
             <section class="selection-section collapsible">
-                <div class="section-header">
+                <div class="section-header" role="button" aria-expanded="true" tabindex="0">
                     <h3>病原菌 Spectrum</h3>
-                    <span class="collapse-icon">▼</span>
+                    <span class="collapse-icon" aria-hidden="true">▼</span>
                 </div>
                 <div class="section-content">
                     <div class="checkbox-grid" id="spectrum-grid">
@@ -94,9 +94,9 @@
             </section>
 
             <section class="selection-section collapsible">
-                <div class="section-header">
+                <div class="section-header" role="button" aria-expanded="true" tabindex="0">
                     <h3>抗藥性 / 特殊部位</h3>
-                    <span class="collapse-icon">▼</span>
+                    <span class="collapse-icon" aria-hidden="true">▼</span>
                 </div>
                 <div class="section-content">
                     <div class="checkbox-grid">
@@ -113,13 +113,14 @@
                 <h3>選擇抗生素</h3>
                 <p class="selector-hint">從篩選結果中選擇要查看的抗生素（可多選）<span id="filter-count" class="filter-count-badge"></span></p>
                 <div id="antibiotic-multiselect" class="multiselect-container">
-                    <div class="multiselect-header">
+                    <div class="multiselect-header" role="combobox" aria-expanded="false" aria-haspopup="listbox">
                         <span id="selected-count">尚未選擇</span>
                         <button type="button" class="multiselect-toggle">▼</button>
                     </div>
                     <div class="multiselect-dropdown" style="display: none;">
                         <div class="multiselect-search">
                             <input type="text" id="antibiotic-search" placeholder="搜尋抗生素..." />
+                            <button type="button" id="select-all-btn" class="btn-select-all">全選</button>
                         </div>
                         <div class="multiselect-options" id="multiselect-options">
                             <!-- Options will be populated by JavaScript -->

@@ -152,11 +152,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     multiselectHeader.addEventListener('click', () => {
         const isVisible = multiselectDropdown.style.display === 'block';
         multiselectDropdown.style.display = isVisible ? 'none' : 'block';
+        multiselectHeader.setAttribute('aria-expanded', String(!isVisible));
     });
 
     document.addEventListener('click', (e) => {
         if (!multiselectContainer.contains(e.target)) {
             multiselectDropdown.style.display = 'none';
+            multiselectHeader.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -167,6 +169,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             const text = option.textContent.toLowerCase();
             option.style.display = text.includes(searchTerm) ? 'flex' : 'none';
         });
+    });
+
+    // Select all / deselect all
+    const selectAllBtn = document.getElementById('select-all-btn');
+    selectAllBtn.addEventListener('click', () => {
+        const allSelected = filteredAntibiotics.length > 0 &&
+            filteredAntibiotics.every(a => selectedAntibiotics.has(a.name));
+
+        if (allSelected) {
+            selectedAntibiotics.clear();
+            selectAllBtn.textContent = '全選';
+        } else {
+            filteredAntibiotics.forEach(a => selectedAntibiotics.add(a.name));
+            selectAllBtn.textContent = '取消全選';
+        }
+
+        multiselectOptions.querySelectorAll('.multiselect-option').forEach(option => {
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            const label = option.querySelector('label');
+            const name = label ? label.textContent : '';
+            const isSelected = selectedAntibiotics.has(name);
+            checkbox.checked = isSelected;
+            option.classList.toggle('selected', isSelected);
+        });
+
+        updateSelectedCount();
+        renderResults();
+        updateSummary(calculateCrCl(), getSelectedCriteria());
+        updateCoveragePanel();
     });
 
     // ─── Core functions ──────────────────────────────────────
@@ -342,11 +373,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         updateSelectedCount();
+        updateSelectAllBtnText();
+    }
+
+    function updateSelectAllBtnText() {
+        const btn = document.getElementById('select-all-btn');
+        if (!btn) return;
+        const allSelected = filteredAntibiotics.length > 0 &&
+            filteredAntibiotics.every(a => selectedAntibiotics.has(a.name));
+        btn.textContent = allSelected ? '取消全選' : '全選';
     }
 
     function updateSelectedCount() {
         const count = selectedAntibiotics.size;
         selectedCountSpan.textContent = count === 0 ? '尚未選擇' : `已選擇 ${count} 個抗生素`;
+        updateSelectAllBtnText();
     }
 
     async function renderResults() {
@@ -641,9 +682,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ─── Collapsible sections ────────────────────────────────
 
     document.querySelectorAll('.collapsible .section-header').forEach(header => {
-        header.addEventListener('click', () => {
+        const toggleCollapse = () => {
             const section = header.closest('.collapsible');
             section.classList.toggle('collapsed');
+            const isExpanded = !section.classList.contains('collapsed');
+            header.setAttribute('aria-expanded', String(isExpanded));
+        };
+        header.addEventListener('click', toggleCollapse);
+        header.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleCollapse();
+            }
         });
     });
 

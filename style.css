@@ -391,14 +391,35 @@ h3 {
 .multiselect-search {
     padding: 0.75rem;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .multiselect-search input {
-    width: 100%;
+    flex: 1;
     padding: 0.5rem;
     border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 0.85rem;
+}
+
+.btn-select-all {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #f0fdfa;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-select-all:hover {
+    background: var(--primary);
+    color: white;
 }
 
 .multiselect-options {
@@ -487,10 +508,10 @@ h3 {
 .empty-state {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 4rem;
+    padding: 2rem;
     color: var(--text-muted);
-    background: white;
-    border: 2px dashed var(--border);
+    background: transparent;
+    border: 1px dashed #d1d5db;
     border-radius: 12px;
 }
 
@@ -563,14 +584,14 @@ h3 {
 }
 
 .dosage-item .indication {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    font-weight: 400;
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 500;
     text-align: left;
 }
 
 .dosage-item .dose {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #0f172a;
     font-family: 'Inter', sans-serif;
