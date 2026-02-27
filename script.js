@@ -153,6 +153,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isVisible = multiselectDropdown.style.display === 'block';
         multiselectDropdown.style.display = isVisible ? 'none' : 'block';
         multiselectHeader.setAttribute('aria-expanded', String(!isVisible));
+
+        // Dynamic height: limit dropdown to available viewport space
+        if (!isVisible) {
+            const rect = multiselectDropdown.getBoundingClientRect();
+            const availableHeight = window.innerHeight - rect.top - 16;
+            multiselectDropdown.style.maxHeight = Math.max(150, availableHeight) + 'px';
+        }
     });
 
     document.addEventListener('click', (e) => {
@@ -283,16 +290,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateMultiselectOptions() {
         multiselectOptions.innerHTML = '';
 
-        // Update filter count badge
+        // Update filter count badge and hint text
         const filterCountBadge = document.getElementById('filter-count');
+        const selectorHint = document.querySelector('.selector-hint');
+        const criteria = getSelectedCriteria();
+        const penetrationSites = ['BBB', 'Bili', 'UTI'];
+        const pathogenCriteria = criteria.filter(c => !penetrationSites.includes(c));
+
         if (filterCountBadge) {
-            const criteria = getSelectedCriteria();
             if (criteria.length > 0) {
                 filterCountBadge.textContent = `${filteredAntibiotics.length} 種`;
                 filterCountBadge.style.display = 'inline-block';
             } else {
                 filterCountBadge.textContent = '';
                 filterCountBadge.style.display = 'none';
+            }
+        }
+
+        if (selectorHint) {
+            if (pathogenCriteria.length > 0) {
+                selectorHint.childNodes[0].textContent = `符合 ${pathogenCriteria.join(', ')} 的抗生素（可多選）`;
+            } else {
+                selectorHint.childNodes[0].textContent = '從篩選結果中選擇要查看的抗生素（可多選）';
             }
         }
 
@@ -578,6 +597,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (selectedAntiList.length === 0) {
             coveredContainer.innerHTML = '<p class="empty-hint">尚未選擇抗生素</p>';
             uncoveredContainer.innerHTML = '<p class="empty-hint">尚未選擇抗生素</p>';
+            updateMobileCoverageSummary([], []);
             return;
         }
 
@@ -677,6 +697,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             uncoveredContainer.innerHTML = '<p class="empty-hint">已覆蓋所有病原菌</p>';
         }
+
+        updateMobileCoverageSummary(covered, uncovered);
+    }
+
+    function updateMobileCoverageSummary(covered, uncovered) {
+        const container = document.getElementById('mobile-coverage-summary');
+        const coveredEl = document.getElementById('mobile-covered');
+        const uncoveredEl = document.getElementById('mobile-uncovered');
+        if (!container || !coveredEl || !uncoveredEl) return;
+
+        if (covered.length === 0 && uncovered.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = '';
+        coveredEl.innerHTML = covered.map(p =>
+            `<span class="pathogen-tag covered">${p.displayName}</span>`
+        ).join('');
+        uncoveredEl.innerHTML = uncovered.map(p =>
+            `<span class="pathogen-tag uncovered">${p.displayName}</span>`
+        ).join('');
     }
 
     // ─── Collapsible sections ────────────────────────────────

@@ -16,6 +16,21 @@
     padding: 0;
 }
 
+*:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.switch input:focus-visible + .slider {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.multiselect-header:focus-visible {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
 body {
     font-family: 'Inter', sans-serif;
     background-color: var(--bg-app);
@@ -678,6 +693,32 @@ h3 {
     margin-top: 0.5rem;
 }
 
+/* Mobile Coverage Summary - hidden on desktop where sidebar panel is visible */
+.mobile-coverage-summary {
+    display: none !important;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-coverage-header {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.mobile-coverage-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.25rem;
+}
+
 /* Responsive - ordered from largest to smallest */
 @media (max-width: 1600px) {
     .results-grid {
@@ -708,6 +749,10 @@ h3 {
 
     .coverage-panel {
         display: none;
+    }
+
+    .mobile-coverage-summary {
+        display: block !important;
     }
 }
 
