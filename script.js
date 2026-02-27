@@ -252,6 +252,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateMultiselectOptions() {
         multiselectOptions.innerHTML = '';
 
+        // Update filter count badge
+        const filterCountBadge = document.getElementById('filter-count');
+        if (filterCountBadge) {
+            const criteria = getSelectedCriteria();
+            if (criteria.length > 0) {
+                filterCountBadge.textContent = `${filteredAntibiotics.length} 種`;
+                filterCountBadge.style.display = 'inline-block';
+            } else {
+                filterCountBadge.textContent = '';
+                filterCountBadge.style.display = 'none';
+            }
+        }
+
         if (filteredAntibiotics.length === 0) {
             multiselectOptions.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">沒有符合條件的抗生素</div>';
             selectedAntibiotics.clear();
@@ -527,11 +540,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Determine relevant pathogens based on user's criteria
+        const criteria = getSelectedCriteria();
+        const penetrationSites = ['BBB', 'Bili', 'UTI'];
+        const pathogenCriteria = criteria.filter(c => !penetrationSites.includes(c));
+
+        // Only show pathogens the user selected; if none selected, show all
+        const relevantPathogens = pathogenCriteria.length > 0
+            ? new Set(pathogenCriteria.filter(c => ALL_PATHOGENS[c]))
+            : new Set(Object.keys(ALL_PATHOGENS));
+
         // Calculate coverage using API data format
         const coverageMap = {};
-        for (const pathogenKey of Object.keys(ALL_PATHOGENS)) {
+        for (const pathogenKey of relevantPathogens) {
             coverageMap[pathogenKey] = { covered: false, level: '' };
         }
+
+        // Track bonus coverage (pathogens not in criteria but covered by selected antibiotics)
+        const bonusCoverage = {};
 
         for (const anti of selectedAntiList) {
             // API format: covered_pathogens is an array of codes
@@ -539,6 +565,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 for (const code of anti.covered_pathogens) {
                     if (coverageMap[code] !== undefined) {
                         coverageMap[code] = { covered: true, level: 'v' };
+                    } else if (pathogenCriteria.length > 0 && ALL_PATHOGENS[code] && !relevantPathogens.has(code)) {
+                        bonusCoverage[code] = { covered: true, level: 'v' };
                     }
                 }
             }
@@ -548,26 +576,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const legacy = anti._legacy;
                 if (legacy.coverage) {
                     for (const [pathogen, level] of Object.entries(legacy.coverage)) {
-                        if (level && level !== '' && coverageMap[pathogen] !== undefined) {
-                            coverageMap[pathogen] = { covered: true, level };
+                        if (level && level !== '') {
+                            if (coverageMap[pathogen] !== undefined) {
+                                coverageMap[pathogen] = { covered: true, level };
+                            } else if (pathogenCriteria.length > 0 && ALL_PATHOGENS[pathogen] && !relevantPathogens.has(pathogen)) {
+                                bonusCoverage[pathogen] = { covered: true, level };
+                            }
                         }
                     }
                 }
                 if (legacy.resistance) {
                     for (const [pathogen, level] of Object.entries(legacy.resistance)) {
-                        if (level && level !== '' && coverageMap[pathogen] !== undefined) {
-                            coverageMap[pathogen] = { covered: true, level };
+                        if (level && level !== '') {
+                            if (coverageMap[pathogen] !== undefined) {
+                                coverageMap[pathogen] = { covered: true, level };
+                            } else if (pathogenCriteria.length > 0 && ALL_PATHOGENS[pathogen] && !relevantPathogens.has(pathogen)) {
+                                bonusCoverage[pathogen] = { covered: true, level };
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Separate into covered and uncovered
+        // Separate into covered and uncovered (from relevant pathogens only)
         const covered = [];
         const uncovered = [];
 
-        for (const [key, displayName] of Object.entries(ALL_PATHOGENS)) {
+        for (const key of relevantPathogens) {
+            const displayName = ALL_PATHOGENS[key];
             if (coverageMap[key] && coverageMap[key].covered) {
                 covered.push({ key, displayName, level: coverageMap[key].level });
             } else {
@@ -575,11 +612,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        // Add bonus coverage items
+        for (const [key, info] of Object.entries(bonusCoverage)) {
+            covered.push({ key, displayName: ALL_PATHOGENS[key], level: info.level, bonus: true });
+        }
+
         if (covered.length > 0) {
             coveredContainer.innerHTML = covered.map(p => `
-                <span class="pathogen-tag covered">
+                <span class="pathogen-tag covered${p.bonus ? ' bonus' : ''}">
                     ${p.displayName}
                     ${p.level && p.level !== 'v' ? `<span class="coverage-level">${p.level}</span>` : ''}
+                    ${p.bonus ? '<span class="coverage-level">bonus</span>' : ''}
                 </span>
             `).join('');
         } else {

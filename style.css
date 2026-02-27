@@ -212,18 +212,19 @@ h3 {
 .btn-reset {
     width: 100%;
     padding: 0.75rem 1rem;
-    background: #ef4444;
-    color: white;
-    border: none;
+    background: #f1f5f9;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
+    transition: background 0.2s, transform 0.1s, color 0.2s;
 }
 
 .btn-reset:hover {
-    background: #dc2626;
+    background: #e2e8f0;
+    color: var(--text-main);
     transform: translateY(-1px);
 }
 
@@ -329,6 +330,18 @@ h3 {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin-bottom: 0.75rem;
+}
+
+.filter-count-badge {
+    display: none;
+    background: var(--primary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 100px;
+    margin-left: 0.4rem;
+    vertical-align: middle;
 }
 
 .multiselect-container {
@@ -996,5 +1009,11 @@ h3 {
     margin-left: 0.3rem;
     font-size: 0.7rem;
     opacity: 0.8;
+}
+
+.pathogen-tag.covered.bonus {
+    background: #e0f2fe;
+    color: #0c4a6e;
+    border-color: #7dd3fc;
 }
 
