@@ -1,7 +1,7 @@
-"""Migrate data from data.js into normalized database tables.
+"""Migrate data from spreadsheet JSON and data.js into normalized database tables.
 
-Parses the JavaScript ANTIBIOTICS array and EMPIRIC_RULES array,
-then inserts into all normalized tables.
+Phase 1: Import antibiotics from spreadsheet_data.json (source of truth)
+Phase 2: Import empiric rules from data.js
 
 Run with: python -m scripts.migrate_data
 """
@@ -10,7 +10,7 @@ import json
 import re
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.antibiotic import (
@@ -26,6 +26,7 @@ from app.models.antibiotic import (
     EmpiricSyndrome,
     Pathogen,
     PenetrationSite,
+    Toxicity,
 )
 from app.models.enums import (
     AgentType,
@@ -33,146 +34,76 @@ from app.models.enums import (
     DialysisType,
     EmpiricTier,
     Route,
+    ToxicityCategory,
 )
 
-DATA_JS_PATH = Path(__file__).resolve().parent.parent.parent / "data.js"
+SCRIPT_DIR = Path(__file__).resolve().parent
+SPREADSHEET_JSON = SCRIPT_DIR / "spreadsheet_data.json"
+DATA_JS_PATH = SCRIPT_DIR.parent.parent / "data.js"
 
 
-# ─── JS Parsing ───────────────────────────────────────────────────
+# ─── Category & Agent Type Mapping ───────────────────────────────
 
 
-def parse_data_js(path: Path) -> tuple[list[dict], list[dict]]:
-    """Parse data.js and extract ANTIBIOTICS and EMPIRIC_RULES arrays."""
-    text = path.read_text(encoding="utf-8")
+CATEGORY_MAP: dict[str, tuple[AntibioticCategory, AgentType]] = {
+    "Penicillins": (AntibioticCategory.penicillin, AgentType.antibacterial),
+    "Cephalosporins": (AntibioticCategory.cephalosporin, AgentType.antibacterial),
+    "Carbapenems": (AntibioticCategory.carbapenem, AgentType.antibacterial),
+    "Fluoroquinolone": (AntibioticCategory.fluoroquinolone, AgentType.antibacterial),
+    "Glyco/Lipo": (AntibioticCategory.glycopeptide, AgentType.antibacterial),
+    "Oxazolid": (AntibioticCategory.oxazolidinone, AgentType.antibacterial),
+    "Tetracyclines": (AntibioticCategory.tetracycline, AgentType.antibacterial),
+    "Macrolides": (AntibioticCategory.macrolide, AgentType.antibacterial),
+    "Lincosamide": (AntibioticCategory.lincosamide, AgentType.antibacterial),
+    "Polymyxins": (AntibioticCategory.polymyxin, AgentType.antibacterial),
+    "Aminoglycosides": (AntibioticCategory.aminoglycoside, AgentType.antibacterial),
+    "OTHER": (AntibioticCategory.other, AgentType.antibacterial),
+    "Antifungal": (AntibioticCategory.other, AgentType.antifungal),
+    "Antifungal ": (AntibioticCategory.other, AgentType.antifungal),
+    "Antiviral": (AntibioticCategory.other, AgentType.antiviral),
+}
 
-    antibiotics = _extract_js_array(text, "ANTIBIOTICS")
-    empiric_rules = _extract_js_array(text, "EMPIRIC_RULES")
-
-    return antibiotics, empiric_rules
-
-
-def _extract_js_array(text: str, var_name: str) -> list[dict]:
-    """Extract a JS array variable and convert to Python list of dicts."""
-    pattern = rf"const\s+{var_name}\s*=\s*\["
-    match = re.search(pattern, text)
-    if not match:
-        return []
-
-    start = match.start()
-    # Find the matching closing bracket
-    bracket_depth = 0
-    array_start = text.index("[", start)
-    for i in range(array_start, len(text)):
-        if text[i] == "[":
-            bracket_depth += 1
-        elif text[i] == "]":
-            bracket_depth -= 1
-            if bracket_depth == 0:
-                array_end = i + 1
-                break
-
-    js_array = text[array_start:array_end]
-
-    # Convert JS object syntax to valid JSON
-    json_str = _js_to_json(js_array)
-
-    return json.loads(json_str)
-
-
-def _js_to_json(js: str) -> str:
-    """Convert JavaScript object/array literal to valid JSON."""
-    s = js
-
-    # Remove single-line comments
-    s = re.sub(r"//[^\n]*", "", s)
-
-    # Replace unquoted keys: word: → "word":
-    s = re.sub(r"(?<=[{,\n])\s*(\w+)\s*:", r' "\1":', s)
-
-    # Replace single quotes with double quotes (for string values)
-    s = re.sub(r"'([^']*)'", r'"\1"', s)
-
-    # Handle boolean values (JS true/false are same as JSON)
-    # Handle trailing commas before ] or }
-    s = re.sub(r",\s*([}\]])", r"\1", s)
-
-    return s
-
-
-# ─── Category Detection ───────────────────────────────────────────
-
-# Map drug names/patterns to categories
+# Fallback detection rules for drugs without explicit category
 _CATEGORY_RULES: list[tuple[str, AntibioticCategory]] = [
-    # Penicillins
     ("Oxacillin", AntibioticCategory.penicillin),
     ("Ampicillin", AntibioticCategory.penicillin),
     ("Unasyn", AntibioticCategory.penicillin),
+    ("Amsulber", AntibioticCategory.penicillin),
     ("Tazocin", AntibioticCategory.penicillin),
     ("Amox-Clav", AntibioticCategory.penicillin),
     ("Augmentin", AntibioticCategory.penicillin),
-    # Cephalosporins
     ("Cef", AntibioticCategory.cephalosporin),
     ("Flomoxef", AntibioticCategory.cephalosporin),
     ("Brosym", AntibioticCategory.cephalosporin),
     ("Zavicefta", AntibioticCategory.cephalosporin),
-    # Carbapenems
     ("Ertapenem", AntibioticCategory.carbapenem),
     ("Meropenem", AntibioticCategory.carbapenem),
     ("Culin", AntibioticCategory.carbapenem),
     ("Imipenem", AntibioticCategory.carbapenem),
     ("Doripenem", AntibioticCategory.carbapenem),
-    # Fluoroquinolones
     ("Ciprofloxacin", AntibioticCategory.fluoroquinolone),
     ("Levofloxacin", AntibioticCategory.fluoroquinolone),
     ("Moxifloxacin", AntibioticCategory.fluoroquinolone),
     ("Nemonoxacin", AntibioticCategory.fluoroquinolone),
-    # Glycopeptides
     ("Teicoplanin", AntibioticCategory.glycopeptide),
     ("Vancomycin", AntibioticCategory.glycopeptide),
-    # Oxazolidinone
     ("Linezolid", AntibioticCategory.oxazolidinone),
-    # Tetracyclines
     ("Minocycline", AntibioticCategory.tetracycline),
     ("Tigecycline", AntibioticCategory.tetracycline),
-    # Macrolides
     ("Erythromycin", AntibioticCategory.macrolide),
     ("Azithromycin", AntibioticCategory.macrolide),
-    # Lincosamide
     ("Clindamycin", AntibioticCategory.lincosamide),
-    # Polymyxins
     ("Colistin", AntibioticCategory.polymyxin),
     ("polymyxin", AntibioticCategory.polymyxin),
     ("Bobimixyn", AntibioticCategory.polymyxin),
-    # Aminoglycosides
     ("Amikacin", AntibioticCategory.aminoglycoside),
-    # Other antibacterials
-    ("Baktar", AntibioticCategory.other),
-    ("TMP/SMX", AntibioticCategory.other),
-    ("Metronidazole", AntibioticCategory.other),
     ("Daptomycin", AntibioticCategory.other),
-    ("Rifampin", AntibioticCategory.other),
-    ("Fosfomycin", AntibioticCategory.other),
-    # Antifungals
-    ("Fluconazole", AntibioticCategory.other),
-    ("Voriconazole", AntibioticCategory.other),
-    ("Flucytosine", AntibioticCategory.other),
-    ("Anidulafungin", AntibioticCategory.other),
-    ("ERAXIS", AntibioticCategory.other),
-    ("Isavuconazole", AntibioticCategory.other),
-    ("Amphotericin", AntibioticCategory.other),
-    # Antivirals
-    ("Acyclovir", AntibioticCategory.other),
-    ("Ganciclovir", AntibioticCategory.other),
-    ("Peramivir", AntibioticCategory.other),
 ]
 
-# Antifungal names
 _ANTIFUNGALS = {
     "Fluconazole", "Voriconazole", "Flucytosine", "Anidulafungin",
     "ERAXIS", "Isavuconazole", "Amphotericin",
 }
-
-# Antiviral names
 _ANTIVIRALS = {"Acyclovir", "Ganciclovir", "Peramivir", "Rapiacta"}
 
 
@@ -194,42 +125,82 @@ def detect_agent_type(name: str) -> AgentType:
 
 
 def detect_generation(name: str) -> str | None:
-    """Extract generation from name like 'Cefepime (4°)'."""
-    m = re.search(r"\((\d)°\)", name)
+    m = re.search(r"\((\d)\s*°\s*\)", name)
     return f"{m.group(1)}°" if m else None
 
 
-# ─── Route Parsing ────────────────────────────────────────────────
+# ─── Route Mapping ───────────────────────────────────────────────
 
 
-def parse_route(indication: str) -> Route:
-    """Extract route from indication text like 'IV (General)' or 'PO/IV (CAP)'."""
-    ind_upper = indication.upper()
-    if "IV/PO" in ind_upper or "PO/IV" in ind_upper:
-        return Route.IV_PO
-    if "IV/IM" in ind_upper or "IM/IV" in ind_upper:
-        return Route.IV_IM
-    if "INHL" in ind_upper:
-        return Route.INHL
-    if "IV" in ind_upper:
-        return Route.IV
-    if "PO" in ind_upper:
-        return Route.PO
-    if "IM" in ind_upper:
-        return Route.IM
-    # Default: try to guess from dose text
-    return Route.IV
+ROUTE_MAP = {
+    "IV": Route.IV,
+    "PO": Route.PO,
+    "INHL": Route.INHL,
+    "IV/PO": Route.IV_PO,
+    "IV_PO": Route.IV_PO,
+    "IV/IM": Route.IV_IM,
+    "IV_IM": Route.IV_IM,
+    "IM": Route.IM,
+}
 
 
-def parse_indication(indication: str) -> str:
-    """Strip route prefix from indication, e.g. 'IV (General)' → 'General'."""
-    # Remove route prefixes
-    cleaned = re.sub(r"^(IV/PO|PO/IV|IV/IM|IV|PO|IM|INHL)\s*", "", indication)
-    # Remove surrounding parentheses
-    cleaned = cleaned.strip()
-    if cleaned.startswith("(") and cleaned.endswith(")"):
-        cleaned = cleaned[1:-1]
-    return cleaned.strip() or "standard"
+# ─── Toxicity Category Mapping ───────────────────────────────────
+
+
+TOXICITY_KEY_MAP = {
+    "general": ToxicityCategory.general,
+    "renal": ToxicityCategory.renal,
+    "hepatic": ToxicityCategory.hepatic,
+    "cardiac": ToxicityCategory.cardiac,
+    "neurologic": ToxicityCategory.neurologic,
+    "musculoskeletal": ToxicityCategory.musculoskeletal,
+    "gi": ToxicityCategory.gi,
+    "skin": ToxicityCategory.skin,
+    "obgyn": ToxicityCategory.obgyn,
+    "hematologic": ToxicityCategory.hematologic,
+    "endocrine": ToxicityCategory.endocrine,
+}
+
+
+# ─── JS Parsing (for empiric rules) ─────────────────────────────
+
+
+def parse_data_js(path: Path) -> tuple[list[dict], list[dict]]:
+    """Parse data.js and extract ANTIBIOTICS and EMPIRIC_RULES arrays."""
+    text = path.read_text(encoding="utf-8")
+    antibiotics = _extract_js_array(text, "ANTIBIOTICS")
+    empiric_rules = _extract_js_array(text, "EMPIRIC_RULES")
+    return antibiotics, empiric_rules
+
+
+def _extract_js_array(text: str, var_name: str) -> list[dict]:
+    pattern = rf"const\s+{var_name}\s*=\s*\["
+    match = re.search(pattern, text)
+    if not match:
+        return []
+    start = match.start()
+    bracket_depth = 0
+    array_start = text.index("[", start)
+    for i in range(array_start, len(text)):
+        if text[i] == "[":
+            bracket_depth += 1
+        elif text[i] == "]":
+            bracket_depth -= 1
+            if bracket_depth == 0:
+                array_end = i + 1
+                break
+    js_array = text[array_start:array_end]
+    json_str = _js_to_json(js_array)
+    return json.loads(json_str)
+
+
+def _js_to_json(js: str) -> str:
+    s = js
+    s = re.sub(r"//[^\n]*", "", s)
+    s = re.sub(r"(?<=[{,\n])\s*(\w+)\s*:", r' "\1":', s)
+    s = re.sub(r"'([^']*)'", r'"\1"', s)
+    s = re.sub(r",\s*([}\]])", r"\1", s)
+    return s
 
 
 # ─── Main Migration ───────────────────────────────────────────────
@@ -241,123 +212,150 @@ def migrate(session: Session) -> dict:
 
     # Load lookup tables
     pathogens = {p.code: p for p in session.execute(select(Pathogen)).scalars().all()}
-    sites = {
-        s.code: s for s in session.execute(select(PenetrationSite)).scalars().all()
+    sites = {s.code: s for s in session.execute(select(PenetrationSite)).scalars().all()}
+    crcl_ranges = {
+        r.label: r for r in session.execute(select(CrclRange)).scalars().all()
     }
-    crcl_normal = (
-        session.execute(select(CrclRange).where(CrclRange.label == "Normal"))
-        .scalar_one_or_none()
-    )
 
     if not pathogens:
         raise RuntimeError("Pathogens table is empty. Run seed_data first.")
-    if not crcl_normal:
+    if not crcl_ranges:
         raise RuntimeError("CrCl ranges table is empty. Run seed_data first.")
 
-    # Parse data.js
-    antibiotics_data, empiric_data = parse_data_js(DATA_JS_PATH)
-    print(f"Parsed {len(antibiotics_data)} antibiotics, {len(empiric_data)} empiric rules from data.js")
+    # ─── Phase 0: Clear existing data ─────────────────────────────
+    # Delete antibiotics (CASCADE removes coverage, penetration, regimens,
+    # dosage_values, dialysis_dosages, notes, toxicities, empiric_recommendations)
+    session.execute(delete(EmpiricSyndrome))
+    session.execute(delete(Antibiotic))
+    session.flush()
+    print("Cleared existing antibiotics and empiric data")
 
-    # --- Migrate antibiotics ---
+    # ─── Phase 1: Import antibiotics from spreadsheet JSON ────────
+    data = json.loads(SPREADSHEET_JSON.read_text(encoding="utf-8"))
+    drugs = data["drugs"]
+    print(f"Loaded {len(drugs)} drugs from spreadsheet_data.json")
+
     antibiotic_map: dict[str, Antibiotic] = {}  # name → model
 
-    for i, ab_data in enumerate(antibiotics_data):
-        name = ab_data["name"]
+    for drug in drugs:
+        name = drug["name"]
+        category_raw = drug.get("category_raw")
+
+        # Resolve category and agent_type
+        if category_raw and category_raw in CATEGORY_MAP:
+            category, agent_type = CATEGORY_MAP[category_raw]
+        else:
+            category = detect_category(name)
+            agent_type = detect_agent_type(name)
+
+        generation = drug.get("generation") or detect_generation(name)
+
         ab = Antibiotic(
             name=name,
             generic_name=None,
-            category=detect_category(name).value,
-            agent_type=detect_agent_type(name).value,
-            generation=detect_generation(name),
+            category=category.value,
+            agent_type=agent_type.value,
+            generation=generation,
         )
         session.add(ab)
-        session.flush()  # get ab.id
+        session.flush()
         antibiotic_map[name] = ab
 
-        # --- Coverage ---
-        coverage_count = 0
-        for field in ("coverage", "resistance"):
-            cov_data = ab_data.get(field, {})
-            for code, value in cov_data.items():
-                # Normalize code: some data.js keys differ from DB codes
-                db_code = _normalize_pathogen_code(code)
-                pathogen = pathogens.get(db_code)
-                if pathogen is None:
-                    print(f"  WARNING: Unknown pathogen code '{code}' (normalized: '{db_code}') for {name}")
-                    continue
-                is_covered = bool(value and value.strip())
-                session.add(AntibioticCoverage(
-                    antibiotic_id=ab.id,
-                    pathogen_id=pathogen.id,
-                    is_covered=is_covered,
-                ))
-                if is_covered:
-                    coverage_count += 1
-
-        # --- Penetration ---
-        pen_data = ab_data.get("penetration", {})
-        for code, value in pen_data.items():
-            db_code = _normalize_site_code(code)
-            site = sites.get(db_code)
-            if site is None:
-                # Some sites in data.js (Bili, UTI) aren't in our initial sites
-                # We'll skip non-matching ones silently
+        # ─── Coverage ─────────────────────────────────────────
+        coverage_data = drug.get("coverage") or {}
+        for code, value in coverage_data.items():
+            pathogen = pathogens.get(code)
+            if pathogen is None:
+                print(f"  WARNING: Unknown pathogen code '{code}' for {name}")
                 continue
-            if value:
-                session.add(AntibioticPenetration(
-                    antibiotic_id=ab.id,
-                    site_id=site.id,
-                ))
+            is_covered = bool(value and value.strip())
+            session.add(AntibioticCoverage(
+                antibiotic_id=ab.id,
+                pathogen_id=pathogen.id,
+                is_covered=is_covered,
+            ))
 
-        # --- Dosage regimens ---
-        for j, dos_data in enumerate(ab_data.get("dosages", [])):
-            indication_raw = dos_data.get("indication", "standard")
-            route = parse_route(indication_raw)
-            indication = parse_indication(indication_raw)
-            dose_text = dos_data.get("dose", "")
-            is_preferred = dos_data.get("preferred", False)
+        # ─── Penetration ─────────────────────────────────────
+        pen_data = drug.get("penetration") or {}
+        for site_code in pen_data:
+            site = sites.get(site_code)
+            if site is None:
+                continue
+            session.add(AntibioticPenetration(
+                antibiotic_id=ab.id,
+                site_id=site.id,
+            ))
+
+        # ─── Regimens ─────────────────────────────────────────
+        for j, reg_data in enumerate(drug.get("regimens", [])):
+            route_str = reg_data.get("route", "IV")
+            route = ROUTE_MAP.get(route_str, Route.IV)
+            indication = reg_data.get("indication")
 
             regimen = DosageRegimen(
                 antibiotic_id=ab.id,
                 route=route.value,
                 indication=indication,
-                is_preferred=is_preferred,
+                is_preferred=(j == 0),
                 sort_order=j,
             )
             session.add(regimen)
             session.flush()
 
-            # Create a dosage_value for Normal CrCl
-            session.add(DosageValue(
-                regimen_id=regimen.id,
-                crcl_range_id=crcl_normal.id,
-                dose_text=dose_text,
-            ))
-
-            # --- Dialysis dosages for this regimen ---
-            if j == 0:  # Only attach dialysis to the primary/first regimen
-                dial_data = ab_data.get("dialysisDosages", {})
-                for dtype_str, dial_text in dial_data.items():
-                    try:
-                        dtype = DialysisType(dtype_str)
-                    except ValueError:
-                        print(f"  WARNING: Unknown dialysis type '{dtype_str}' for {name}")
-                        continue
-                    session.add(DialysisDosage(
+            # Dosage values for all CrCl ranges
+            dosages = reg_data.get("dosages") or {}
+            for label, dose_text in dosages.items():
+                crcl = crcl_ranges.get(label)
+                if crcl is None:
+                    print(f"  WARNING: Unknown CrCl range '{label}' for {name}")
+                    continue
+                if dose_text and dose_text.strip():
+                    session.add(DosageValue(
                         regimen_id=regimen.id,
-                        dialysis_type=dtype.value,
-                        dose_text=dial_text,
+                        crcl_range_id=crcl.id,
+                        dose_text=dose_text.strip(),
                     ))
 
-        # --- Comments → antibiotic_notes ---
-        comments = ab_data.get("comments", "").strip()
-        if comments:
+            # Dialysis dosages
+            hd_text = reg_data.get("hd")
+            crrt_text = reg_data.get("crrt")
+            if hd_text and hd_text.strip() and hd_text.strip().lower() != "no data":
+                session.add(DialysisDosage(
+                    regimen_id=regimen.id,
+                    dialysis_type=DialysisType.HD.value,
+                    dose_text=hd_text.strip(),
+                ))
+            if crrt_text and crrt_text.strip() and crrt_text.strip().lower() != "no data":
+                session.add(DialysisDosage(
+                    regimen_id=regimen.id,
+                    dialysis_type=DialysisType.CRRT.value,
+                    dose_text=crrt_text.strip(),
+                ))
+
+        # ─── Notes ────────────────────────────────────────────
+        notes_text = drug.get("notes")
+        if notes_text and notes_text.strip():
             session.add(AntibioticNote(
                 antibiotic_id=ab.id,
-                note_type="general",
-                content=comments,
+                note_type="other",
+                content=notes_text.strip(),
             ))
 
+        # ─── Toxicities ──────────────────────────────────────
+        tox_data = drug.get("toxicities") or {}
+        for tox_key, description in tox_data.items():
+            tox_cat = TOXICITY_KEY_MAP.get(tox_key)
+            if tox_cat is None:
+                print(f"  WARNING: Unknown toxicity key '{tox_key}' for {name}")
+                continue
+            if description and description.strip():
+                session.add(Toxicity(
+                    antibiotic_id=ab.id,
+                    category=tox_cat.value,
+                    description=description.strip(),
+                ))
+
+    # Gather stats
     stats["antibiotics"] = len(antibiotic_map)
     stats["coverage_records"] = session.execute(
         select(AntibioticCoverage)
@@ -365,8 +363,20 @@ def migrate(session: Session) -> dict:
     stats["dosage_regimens"] = session.execute(
         select(DosageRegimen)
     ).scalars().all().__len__()
+    stats["dosage_values"] = session.execute(
+        select(DosageValue)
+    ).scalars().all().__len__()
+    stats["dialysis_dosages"] = session.execute(
+        select(DialysisDosage)
+    ).scalars().all().__len__()
+    stats["toxicities"] = session.execute(
+        select(Toxicity)
+    ).scalars().all().__len__()
 
-    # --- Migrate empiric rules ---
+    # ─── Phase 2: Import empiric rules from data.js ───────────────
+    _, empiric_data = parse_data_js(DATA_JS_PATH)
+    print(f"Loaded {len(empiric_data)} empiric rules from data.js")
+
     empiric_count = 0
     for rule in empiric_data:
         syndrome_name = rule.get("syndrome", "")
@@ -383,16 +393,8 @@ def migrate(session: Session) -> dict:
             ("alternative", EmpiricTier.alternative),
         ]:
             for ab_name_raw in rule.get(tier_name, []):
-                # Handle combination entries like "Ceftriaxone (3°) + Metronidazole"
-                # Store as-is, link to first antibiotic if found
                 ab_name_clean = ab_name_raw.split(" + ")[0].strip()
-                ab = antibiotic_map.get(ab_name_clean)
-                if ab is None:
-                    # Try fuzzy match
-                    for key in antibiotic_map:
-                        if ab_name_clean.lower() in key.lower():
-                            ab = antibiotic_map[key]
-                            break
+                ab = _fuzzy_match_antibiotic(ab_name_clean, antibiotic_map)
                 if ab is None:
                     print(f"  WARNING: Empiric rule references unknown antibiotic '{ab_name_raw}'")
                     continue
@@ -414,22 +416,26 @@ def migrate(session: Session) -> dict:
     return stats
 
 
-def _normalize_pathogen_code(code: str) -> str:
-    """Map data.js pathogen keys to DB pathogen codes."""
-    mapping = {
-        "Efc": "Efc",
-        "Efm": "Efm",
-        "Enbac": "Enbac",
-        "Bili": "Bili",   # This is actually not a pathogen, skip
-        "Atyp": "Atyp",
-        "Ab": "Ab",
-    }
-    return mapping.get(code, code)
+def _fuzzy_match_antibiotic(name: str, antibiotic_map: dict[str, Antibiotic]) -> Antibiotic | None:
+    """Match an antibiotic name from empiric rules to DB records."""
+    # Direct match
+    if name in antibiotic_map:
+        return antibiotic_map[name]
 
+    # Fuzzy: check if query is contained in any DB name or vice versa
+    name_lower = name.lower()
+    for key, ab in antibiotic_map.items():
+        if name_lower in key.lower() or key.lower() in name_lower:
+            return ab
 
-def _normalize_site_code(code: str) -> str:
-    """Map data.js penetration keys to DB site codes."""
-    return code  # Direct mapping: BBB, Pros, Endo
+    # Try matching first word
+    first_word = name_lower.split()[0] if name_lower.split() else ""
+    if first_word:
+        for key, ab in antibiotic_map.items():
+            if key.lower().startswith(first_word):
+                return ab
+
+    return None
 
 
 # ─── Entry point ──────────────────────────────────────────────────

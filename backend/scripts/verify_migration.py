@@ -1,11 +1,12 @@
 """Verify migrated data integrity.
 
-Compares database contents against source data.js to ensure
+Compares database contents against spreadsheet_data.json to ensure
 nothing was lost or corrupted during migration.
 
 Run with: python -m scripts.verify_migration
 """
 
+import json
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -24,10 +25,13 @@ from app.models.antibiotic import (
     EmpiricSyndrome,
     Pathogen,
     PenetrationSite,
+    Toxicity,
 )
 from scripts.migrate_data import parse_data_js
 
-DATA_JS_PATH = Path(__file__).resolve().parent.parent.parent / "data.js"
+SCRIPT_DIR = Path(__file__).resolve().parent
+SPREADSHEET_JSON = SCRIPT_DIR / "spreadsheet_data.json"
+DATA_JS_PATH = SCRIPT_DIR.parent.parent / "data.js"
 
 
 def verify(session: Session) -> tuple[bool, list[str]]:
@@ -35,11 +39,15 @@ def verify(session: Session) -> tuple[bool, list[str]]:
     messages: list[str] = []
     all_passed = True
 
-    antibiotics_data, empiric_data = parse_data_js(DATA_JS_PATH)
+    # Load source data for comparison
+    ss_data = json.loads(SPREADSHEET_JSON.read_text(encoding="utf-8"))
+    expected_drugs = ss_data["drug_count"]
+    expected_regimens = ss_data["regimen_count"]
+    _, empiric_data = parse_data_js(DATA_JS_PATH)
 
     # --- Table counts ---
     checks = [
-        ("antibiotics", Antibiotic, len(antibiotics_data)),
+        ("antibiotics", Antibiotic, expected_drugs),
         ("pathogens", Pathogen, 18),
         ("penetration_sites", PenetrationSite, 3),
         ("crcl_ranges", CrclRange, 12),
@@ -54,137 +62,162 @@ def verify(session: Session) -> tuple[bool, list[str]]:
             all_passed = False
         messages.append(f"  {label}: {count} (expected {expected}) [{status}]")
 
-    # Other tables (no fixed expected count, just report)
+    # Check dosage regimens count
+    reg_count = session.scalar(select(func.count()).select_from(DosageRegimen))
+    reg_status = "OK" if reg_count == expected_regimens else "MISMATCH"
+    if reg_status == "MISMATCH":
+        all_passed = False
+    messages.append(f"  dosage_regimens: {reg_count} (expected {expected_regimens}) [{reg_status}]")
+
+    # Other tables (report only)
     other_tables = [
         ("antibiotic_coverage", AntibioticCoverage),
         ("antibiotic_penetration", AntibioticPenetration),
-        ("dosage_regimens", DosageRegimen),
         ("dosage_values", DosageValue),
         ("dialysis_dosages", DialysisDosage),
         ("antibiotic_notes", AntibioticNote),
+        ("toxicities", Toxicity),
         ("empiric_recommendations", EmpiricRecommendation),
     ]
     for label, model in other_tables:
         count = session.scalar(select(func.count()).select_from(model))
         messages.append(f"  {label}: {count}")
 
-    # --- Spot checks ---
+    # --- Spot checks from plan verification requirements ---
     messages.append("\n=== Spot Checks ===")
 
-    # Check 1: Meropenem should have ESBL coverage
-    mero = session.execute(
-        select(Antibiotic).where(Antibiotic.name == "Meropenem")
-    ).scalar_one_or_none()
-    if mero:
-        esbl = session.execute(select(Pathogen).where(Pathogen.code == "ESBL")).scalar_one_or_none()
-        if esbl:
-            cov = session.execute(
-                select(AntibioticCoverage).where(
-                    AntibioticCoverage.antibiotic_id == mero.id,
-                    AntibioticCoverage.pathogen_id == esbl.id,
-                )
-            ).scalar_one_or_none()
-            if cov and cov.is_covered:
-                messages.append("  Meropenem covers ESBL: OK")
-            else:
-                messages.append("  Meropenem covers ESBL: FAIL")
-                all_passed = False
-    else:
-        messages.append("  Meropenem not found: FAIL")
+    def _check_coverage(drug_name, pathogen_code, expected_covered=True):
+        ab = session.execute(
+            select(Antibiotic).where(Antibiotic.name.contains(drug_name))
+        ).scalar_one_or_none()
+        if not ab:
+            messages.append(f"  {drug_name} not found: FAIL")
+            return False
+        pathogen = session.execute(
+            select(Pathogen).where(Pathogen.code == pathogen_code)
+        ).scalar_one_or_none()
+        if not pathogen:
+            messages.append(f"  Pathogen {pathogen_code} not found: FAIL")
+            return False
+        cov = session.execute(
+            select(AntibioticCoverage).where(
+                AntibioticCoverage.antibiotic_id == ab.id,
+                AntibioticCoverage.pathogen_id == pathogen.id,
+            )
+        ).scalar_one_or_none()
+        covered = cov and cov.is_covered if cov else False
+        ok = covered == expected_covered
+        status = "OK" if ok else "FAIL"
+        messages.append(f"  {drug_name} covers {pathogen_code}: {status}")
+        if not ok:
+            return False
+        return True
+
+    # 1. Ertapenem coverage: Anae:++, ESBL:v, MDRAB:v
+    ok1 = _check_coverage("Ertapenem", "Anae")
+    ok2 = _check_coverage("Ertapenem", "ESBL")
+    ok3 = _check_coverage("Ertapenem", "MDRAB")
+    if not (ok1 and ok2 and ok3):
         all_passed = False
 
-    # Check 2: Tazocin should have 3 dosage regimens
-    tazocin = session.execute(
-        select(Antibiotic).where(Antibiotic.name.contains("Tazocin"))
-    ).scalar_one_or_none()
-    if tazocin:
-        reg_count = session.scalar(
-            select(func.count()).select_from(DosageRegimen).where(
-                DosageRegimen.antibiotic_id == tazocin.id
-            )
-        )
-        if reg_count == 3:
-            messages.append(f"  Tazocin has {reg_count} regimens: OK")
-        else:
-            messages.append(f"  Tazocin has {reg_count} regimens (expected 3): FAIL")
-            all_passed = False
+    # 2. Tazocin coverage: PsA:+, Anae:++
+    ok1 = _check_coverage("Tazocin", "PsA")
+    ok2 = _check_coverage("Tazocin", "Anae")
+    if not (ok1 and ok2):
+        all_passed = False
 
-        # Tazocin should have HD, PD, CRRT dialysis dosages
-        dial_count = session.scalar(
-            select(func.count()).select_from(DialysisDosage)
-            .join(DosageRegimen)
-            .where(DosageRegimen.antibiotic_id == tazocin.id)
-        )
-        if dial_count == 3:
-            messages.append(f"  Tazocin has {dial_count} dialysis dosages: OK")
-        else:
-            messages.append(f"  Tazocin has {dial_count} dialysis dosages (expected 3): FAIL")
-            all_passed = False
+    # 3. Levofloxacin coverage
+    ok1 = _check_coverage("Levofloxacin", "MSSA")
+    ok2 = _check_coverage("Levofloxacin", "Efc")
+    ok3 = _check_coverage("Levofloxacin", "Atyp")
+    ok4 = _check_coverage("Levofloxacin", "Steno")
+    if not (ok1 and ok2 and ok3 and ok4):
+        all_passed = False
 
-    # Check 3: Ceftriaxone should penetrate BBB
-    ceftriaxone = session.execute(
-        select(Antibiotic).where(Antibiotic.name.contains("Ceftriaxone"))
+    # 4. Metronidazole: coverage Anae:++, penetration BBB
+    ok1 = _check_coverage("Metronidazole", "Anae")
+    if not ok1:
+        all_passed = False
+    metro = session.execute(
+        select(Antibiotic).where(Antibiotic.name == "Metronidazole")
     ).scalar_one_or_none()
-    if ceftriaxone:
+    if metro:
         bbb = session.execute(
             select(PenetrationSite).where(PenetrationSite.code == "BBB")
         ).scalar_one_or_none()
         if bbb:
             pen = session.execute(
                 select(AntibioticPenetration).where(
-                    AntibioticPenetration.antibiotic_id == ceftriaxone.id,
+                    AntibioticPenetration.antibiotic_id == metro.id,
                     AntibioticPenetration.site_id == bbb.id,
                 )
             ).scalar_one_or_none()
             if pen:
-                messages.append("  Ceftriaxone penetrates BBB: OK")
+                messages.append("  Metronidazole penetrates BBB: OK")
             else:
-                messages.append("  Ceftriaxone penetrates BBB: FAIL")
+                messages.append("  Metronidazole penetrates BBB: FAIL")
                 all_passed = False
 
-    # Check 4: Acyclovir should be antiviral
-    acyclovir = session.execute(
-        select(Antibiotic).where(Antibiotic.name == "Acyclovir")
+    # 5. Teicoplanin should have 4 regimens
+    teico = session.execute(
+        select(Antibiotic).where(Antibiotic.name == "Teicoplanin")
     ).scalar_one_or_none()
-    if acyclovir:
-        if acyclovir.agent_type.value == "antiviral":
-            messages.append("  Acyclovir agent_type=antiviral: OK")
-        else:
-            messages.append(f"  Acyclovir agent_type={acyclovir.agent_type}: FAIL (expected antiviral)")
-            all_passed = False
-
-    # Check 5: Fluconazole should be antifungal
-    fluconazole = session.execute(
-        select(Antibiotic).where(Antibiotic.name == "Fluconazole")
-    ).scalar_one_or_none()
-    if fluconazole:
-        if fluconazole.agent_type.value == "antifungal":
-            messages.append("  Fluconazole agent_type=antifungal: OK")
-        else:
-            messages.append(f"  Fluconazole agent_type={fluconazole.agent_type}: FAIL (expected antifungal)")
-            all_passed = False
-
-    # Check 6: Vancomycin should have comments (notes)
-    vanco = session.execute(
-        select(Antibiotic).where(Antibiotic.name == "Vancomycin")
-    ).scalar_one_or_none()
-    if vanco:
-        note_count = session.scalar(
-            select(func.count()).select_from(AntibioticNote).where(
-                AntibioticNote.antibiotic_id == vanco.id
+    if teico:
+        tcount = session.scalar(
+            select(func.count()).select_from(DosageRegimen).where(
+                DosageRegimen.antibiotic_id == teico.id
             )
         )
-        if note_count > 0:
-            messages.append(f"  Vancomycin has {note_count} note(s): OK")
+        if tcount == 4:
+            messages.append(f"  Teicoplanin has {tcount} regimens: OK")
         else:
-            messages.append("  Vancomycin has no notes: FAIL")
+            messages.append(f"  Teicoplanin has {tcount} regimens (expected 4): FAIL")
             all_passed = False
 
-    # Check 7: Every antibiotic in data.js should exist in DB
+    # 6. Tigecycline standard dose should be 50mg Q12h (not 25mg)
+    tige = session.execute(
+        select(Antibiotic).where(Antibiotic.name.contains("Tigecycline"))
+    ).scalar_one_or_none()
+    if tige:
+        normal_crcl = session.execute(
+            select(CrclRange).where(CrclRange.label == "Normal")
+        ).scalar_one_or_none()
+        first_reg = session.execute(
+            select(DosageRegimen).where(
+                DosageRegimen.antibiotic_id == tige.id
+            ).order_by(DosageRegimen.sort_order).limit(1)
+        ).scalar_one_or_none()
+        if first_reg and normal_crcl:
+            dv = session.execute(
+                select(DosageValue).where(
+                    DosageValue.regimen_id == first_reg.id,
+                    DosageValue.crcl_range_id == normal_crcl.id,
+                )
+            ).scalar_one_or_none()
+            if dv and "50mg" in dv.dose_text:
+                messages.append(f"  Tigecycline Normal dose contains 50mg: OK ({dv.dose_text})")
+            else:
+                dose = dv.dose_text if dv else "N/A"
+                messages.append(f"  Tigecycline Normal dose: FAIL (got: {dose})")
+                all_passed = False
+
+    # 7. Acyclovir = antiviral, Fluconazole = antifungal
+    for name, expected_type in [("Acyclovir", "antiviral"), ("Fluconazole", "antifungal")]:
+        ab = session.execute(
+            select(Antibiotic).where(Antibiotic.name == name)
+        ).scalar_one_or_none()
+        if ab:
+            if ab.agent_type.value == expected_type:
+                messages.append(f"  {name} agent_type={expected_type}: OK")
+            else:
+                messages.append(f"  {name} agent_type={ab.agent_type.value} (expected {expected_type}): FAIL")
+                all_passed = False
+
+    # 8. All spreadsheet drugs should exist in DB
     messages.append("\n=== Name Matching ===")
     missing = []
-    for ab_data in antibiotics_data:
-        name = ab_data["name"]
+    for drug in ss_data["drugs"]:
+        name = drug["name"]
         exists = session.execute(
             select(Antibiotic).where(Antibiotic.name == name)
         ).scalar_one_or_none()
@@ -194,11 +227,10 @@ def verify(session: Session) -> tuple[bool, list[str]]:
         messages.append(f"  Missing antibiotics: {missing}")
         all_passed = False
     else:
-        messages.append(f"  All {len(antibiotics_data)} antibiotics found in DB: OK")
+        messages.append(f"  All {expected_drugs} antibiotics found in DB: OK")
 
     # --- Summary ---
     messages.append(f"\n=== RESULT: {'ALL PASSED' if all_passed else 'SOME CHECKS FAILED'} ===")
-
     return all_passed, messages
 
 

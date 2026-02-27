@@ -74,7 +74,7 @@ def main() -> None:
         seed_sync(session)
 
     # Run migration
-    print("\n[3/4] Running data migration from data.js...")
+    print("\n[3/4] Running data migration from spreadsheet + empiric rules...")
     with SessionLocal() as session:
         try:
             stats = migrate(session)
